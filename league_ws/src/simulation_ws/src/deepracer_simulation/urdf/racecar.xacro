@@ -237,31 +237,6 @@
     <axis xyz="0 0 1" />
   </joint>
 
-  <!-- Add static camera for safety driver -->
-
-<!--  <joint name="static_camera_link_joint" type="fixed">-->
-<!--    <parent link="map"/>-->
-<!--    <child link="static_camera_link"/>-->
-<!--  </joint>-->
-
-<!--  <link name="static_camera_link">-->
-<!--    <visual>-->
-<!--      <origin xyz="0 0 0" rpy="0 0 0"/>-->
-<!--      <geometry>-->
-<!--        <box size="0.001 0.001 0.005"/>-->
-<!--      </geometry>-->
-<!--      <material name="blue"/>-->
-<!--    </visual>-->
-<!--    <inertial>-->
-<!--      <origin xyz="0 0 1" rpy="0 0 0"/>-->
-<!--      <mass value="1"/>-->
-<!--      <inertia-->
-<!--        ixx="1.0" ixy="0.0" ixz="0.0"-->
-<!--        iyy="1.0" iyz="0.0"-->
-<!--        izz="1.0"/>-->
-<!--    </inertial>-->
-<!--  </link>-->
-
   <!-- Add the remaining xacros -->
 
   <xacro:include filename="$(find deepracer_simulation)/urdf/racecar.gazebo" />

@@ -36,7 +36,7 @@
 
   <include>
     <uri>model://models/reinvent_base</uri>
-    <pose>0 0 0 0 0 0</pose>
+    <pose>6.343577 -1.312116 0 0 0 1.570796</pose>
     <name>racetrack</name>
   </include>
 

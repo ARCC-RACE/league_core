@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<robot name="static_camera" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find deepracer_simulation)/camera_urdf/macros.xacro" />
+
+  <!-- Add static camera for safety driver -->
+
+  <link name="world"/>
+
+  <joint name="fixed" type="fixed">
+    <parent link="world"/>
+    <child link="static_camera_link"/>
+    <origin xyz="3.86 2.6 4.07" rpy="0 1.570796327 0"/>
+  </joint>
+
+  <link name="static_camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.5"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 1" rpy="0 0 0"/>
+      <mass value="1"/>
+      <inertia
+        ixx="1.0" ixy="0.0" ixz="0.0"
+        iyy="1.0" iyz="0.0"
+        izz="1.0"/>
+    </inertial>
+  </link>
+
+  <!-- Add the remaining xacros -->
+  <xacro:include filename="$(find deepracer_simulation)/camera_urdf/camera.gazebo" />
+  <xacro:include filename="$(find deepracer_simulation)/camera_urdf/materials.xacro" />
+
+</robot>
