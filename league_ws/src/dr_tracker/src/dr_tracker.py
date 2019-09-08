@@ -5,10 +5,11 @@ import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
-import threading
 import math
-from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Vector3Stamped, PoseStamped, AccelStamped
+from std_msgs.msg import Header
 import time
+import tf
 
 
 def dist(x1, y1, x2, y2):
@@ -21,10 +22,12 @@ def midpoint(x1, y1, x2, y2):
 
 class TrackDR:
     def __init__(self, display_windows=True, temporal_filtering=2, dr_contour_area_cutoff=100, cam_dist_from_ground=1,
-                 camera_vertical_fov=80, camera_horizontal_fov=120):
+                 camera_vertical_fov=80, camera_horizontal_fov=120, dr_height=0.17, arrow_lower=[170, 50, 90],
+                 arrow_upper=[200, 255, 255]):
         self.acceleration = None
         self.image_pub = rospy.Publisher("dr_tracker/image_raw", Image, queue_size=1)
-        # self.location_vector_pub = rospy.Publish("dr_tracker/location_vector", Vector3, queue_size=1)
+        self.pose_pub = rospy.Publisher("dr_tracker/pose", PoseStamped, queue_size=1)
+        self.vel_pub = rospy.Publisher("dr_tracker/velocity", Vector3Stamped, queue_size=1)
         self.bridge = CvBridge()
         self.display_windows = display_windows
         self.cv_image_raw = None
@@ -32,6 +35,8 @@ class TrackDR:
         self.dr_centroid = None
         self.dr_box = None  # the bounding box the of DR triangle for determining orientation vector
         self.dr_contour_area_cutoff = dr_contour_area_cutoff
+        self.arrow_lower = arrow_lower
+        self.arrow_upper = arrow_upper
         # self.last_bounding_rect = None
         # self.last_centroid = None
         self.temporal_filtering = temporal_filtering  # the number of dr_location vectors to average (0 = no filtering)
@@ -42,12 +47,13 @@ class TrackDR:
         self.dr_acceleration = 0.0
         self.dr_position = 0.0
         self.dr_heading = 0.0
+        self.dr_angular_accel = 0.0
 
         self.last_update_time = time.time()  # used for finding dx/dt, dv/dt
 
         # variables for holding information about the cameras in order to compute the velocity and absolute position of the car
         # units = meters, degrees, seconds
-        self.dr_height = 0.17
+        self.dr_height = dr_height
         self.cam_dist_from_ground = cam_dist_from_ground
         self.camera_fov = np.array((camera_horizontal_fov, camera_vertical_fov))
         self.camera_resolution = None
@@ -66,6 +72,7 @@ class TrackDR:
         self.filter_image()
         self.detect_dr_arrow()
         self.compute_state()
+        self.publish_state()
         cv2.waitKey(3)
 
     def filter_image(self):
@@ -82,8 +89,8 @@ class TrackDR:
         if self.cv_image_filtered is not None:  # make sure that a frame exists
             # create NumPy arrays from the boundaries
             hsv = cv2.cvtColor(self.cv_image_filtered, cv2.COLOR_BGR2HSV)  # convert to hsv for easier color isolation
-            low_red = np.array([170, 50, 90])  # lower bound for red mask
-            high_red = np.array([200, 255, 255])  # upper bound for red mask
+            low_red = np.array(self.arrow_lower)  # lower bound for red mask
+            high_red = np.array(self.arrow_upper)  # upper bound for red mask
 
             # find the colors within the specified boundaries and apply
             # the mask
@@ -184,13 +191,38 @@ class TrackDR:
             # compute heading using angle between two vectors (radians)
             v = np.array((1, 0))
             u = (self.dr_location_vector[0, 0] - self.dr_location_vector[0, 1])
-            self.dr_heading = np.arccos(u.dot(v) / (np.sqrt(u.dot(u))*np.sqrt(v.dot(v))))
+            self.dr_heading = np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
+            if self.dr_location_vector[0, 0, 1] < self.dr_location_vector[0, 1, 1]:
+                self.dr_heading = 2 * math.pi - self.dr_heading
             if self.display_windows:
                 print("dr position: " + str(self.dr_position))
                 print("dr velocity: " + str(self.dr_velocity))
                 print("dr acceleration: " + str(self.dr_acceleration))
                 print("dr heading: " + str(self.dr_heading))
                 print("\n")
+
+    def publish_state(self):
+        header = Header()
+        header.stamp = rospy.Time.now()
+        position_message = PoseStamped()
+        position_message.header = header
+        orientation = tf.transformations.quaternion_from_euler(0, 0, self.dr_heading)
+        position_message.pose.orientation.x = orientation[0]
+        position_message.pose.orientation.y = orientation[1]
+        position_message.pose.orientation.z = orientation[2]
+        position_message.pose.orientation.w = orientation[3]
+        position_message.pose.position.x = self.dr_position[0]
+        position_message.pose.position.y = self.dr_position[1]
+        self.pose_pub.publish(position_message)
+
+        velocity_message = Vector3Stamped()
+        velocity_message.header = header
+        velocity_message.vector.x = self.dr_velocity[0]
+        velocity_message.vector.y = self.dr_velocity[1]
+        self.vel_pub.publish(velocity_message)
+
+        # acceleration_message = AccelStamped()
+        # acceleration_message.header = header
 
 
 if __name__ == "__main__":
