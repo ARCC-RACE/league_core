@@ -7,6 +7,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 import threading
 import math
+from geometry_msgs.msg import Vector3
 
 
 def dist(x1, y1, x2, y2):
@@ -18,18 +19,21 @@ def midpoint(x1, y1, x2, y2):
 
 
 class TrackDR:
-    def __init__(self, display_windows=True):
-        self.image_pub = rospy.Publisher("dr_track/image_raw", Image, queue_size=1)
+    def __init__(self, display_windows=True, temporal_filtering=2, dr_contour_area_cutoff=50):
+        self.image_pub = rospy.Publisher("dr_tracker/image_raw", Image, queue_size=1)
+        # self.location_vector_pub = rospy.Publish("dr_tracker/location_vector", Vector3, queue_size=1)
         self.bridge = CvBridge()
         self.display_windows = display_windows
         self.cv_image_raw = None
-        self.cv_image_filtered = None
+        self.cv_image_filtered = None  # Image with blur or median applied. This will be better for processing contours
         self.dr_centroid = None
-        self.dr_box = None
-        self.dr_contour_area_cutoff = 50
-        self.last_bounding_rect = None
-        self.last_centroid = None
-        self.dr_location_vector = None  # two points that represent the orientation and location fo the DeepRacer (first index is front)
+        self.dr_box = None  # the bounding box the of DR triangle for determining orientation vector
+        self.dr_contour_area_cutoff = dr_contour_area_cutoff
+        # self.last_bounding_rect = None
+        # self.last_centroid = None
+        self.temporal_filtering = temporal_filtering  # the number of dr_location vectors to average (0 = no filtering)
+        self.dr_location_vector = np.zeros((self.temporal_filtering + 1, 2,
+                                            2))  # two points that represent the orientation and location fo the DeepRacer (first index is front)
 
     def process_image(self, image):
         """Takes in image from ROS and converts it to open CV form. Begins the process of analyzing the track, the deepracer, etc."""
@@ -37,26 +41,20 @@ class TrackDR:
             self.cv_image_raw = self.bridge.imgmsg_to_cv2(image, "bgr8")
         except CvBridgeError as e:
             print(e)
-
         if self.display_windows:
             cv2.imshow("Raw image window", self.cv_image_raw)
-
-        self.cv_image_filtered = self.filter_image(self.cv_image_raw)
-        # self.cv_image_filtered = self.cv_image_raw
+        self.filter_image()
         self.detect_dr_arrow()
-
         cv2.waitKey(3)
 
-    def filter_image(self, image):
+    def filter_image(self):
         # median = cv2.medianBlur(image, 9)
         # blur = cv2.bilateralFilter(image, 9, 75, 75)
-        blur = cv2.GaussianBlur(image, (15, 15), 0)
-
+        blur = cv2.GaussianBlur(self.cv_image_raw, (15, 15), 0)
         # if self.display_windows:
         #     cv2.imshow("Filter image window", blur)
         #     # cv2.imshow("Blurred image window", blur)
-
-        return blur
+        self.cv_image_filtered = blur
 
     def detect_dr_arrow(self):
         """Detects the red arrow that indicates the location and direction of the Deepracer"""
@@ -74,29 +72,26 @@ class TrackDR:
             for cnt in contours:
                 area = cv2.contourArea(cnt)
                 if area > self.dr_contour_area_cutoff:  # make sure that the contour is significant (filter out some noise if it exists)
-                    print("area: " + str(area))
                     # Find the centroid for the arrow contour on the DeepRacer
                     moments = cv2.moments(cnt)
                     cx = int(moments['m10'] / moments['m00'])
                     cy = int(moments['m01'] / moments['m00'])
                     centroid = (cx, cy)
                     # average out the centroid to minimize noise
-                    if self.last_centroid is not None:
-                        centroid = (
-                            (centroid[0] + self.last_centroid[0]) / 2.0, (centroid[1] + self.last_centroid[1]) / 2.0)
+                    # if self.last_centroid is not None:
+                    #     centroid = (
+                    #         (centroid[0] + self.last_centroid[0]) / 2.0, (centroid[1] + self.last_centroid[1]) / 2.0)
                     self.dr_centroid = (int(centroid[0]), int(centroid[1]))
-                    self.last_centroid = self.dr_centroid
-                    print("centroid: " + str(self.dr_centroid))
+                    # self.last_centroid = self.dr_centroid
 
                     # Find the minimum area bounding rectangle for the DeepRacer arrow
                     rect = cv2.minAreaRect(cnt)
                     box = cv2.boxPoints(rect)
                     # average the bounding rectangle with an last one to remove more noise
-                    if self.last_bounding_rect is not None:
-                        box = (box + self.last_bounding_rect) / 2.0
-                    self.last_bounding_rect = box
+                    # if self.last_bounding_rect is not None:
+                    #     box = (box + self.last_bounding_rect) / 2.0
+                    # self.last_bounding_rect = box
                     self.dr_box = np.int0(box)
-                    print("bounding rectangle: \n" + str(self.dr_box))
 
                     # Get the dr_location_vector by using the centroid and bounding rectangle
                     # Since the indicator is a triangle we can assume that the back of the DeepRacer is the side of the rectangle closest to the centroid
@@ -110,28 +105,42 @@ class TrackDR:
                         p1 = midpoint(self.dr_box[1, 0], self.dr_box[1, 1], self.dr_box[2, 0], self.dr_box[2, 1])
                         p2 = midpoint(self.dr_box[3, 0], self.dr_box[3, 1], self.dr_box[0, 0], self.dr_box[0, 1])
                         midpoints = np.int0([[p1[0], p1[1]], [p2[0], p2[1]]])
-                    print("midpoint at end of rectangles: \n" + str(midpoints))
 
                     # determine front and back of car
                     if dist(midpoints[0, 0], midpoints[0, 1], self.dr_centroid[0], self.dr_centroid[1]) < dist(
                             midpoints[1, 0], midpoints[1, 1], self.dr_centroid[0], self.dr_centroid[1]):
-                        self.dr_location_vector = midpoints
+                        new_dr_location_vector = midpoints
                     else:
-                        self.dr_location_vector = np.roll(midpoints, 2)
-                    print("dr location vector: \n" + str(self.dr_location_vector))
+                        new_dr_location_vector = np.roll(midpoints, 2)
+
+                    # apply temporal filtering on the vector
+                    for i in range(self.temporal_filtering):
+                        if not self.dr_location_vector[
+                                   self.temporal_filtering - 1, 0, 0] == 0:  # do not want to average before vector is filled
+                            new_dr_location_vector = (new_dr_location_vector + self.dr_location_vector[
+                                self.temporal_filtering - i]) / 2.0
+                    self.dr_location_vector = np.roll(self.dr_location_vector, -1, axis=0)
+                    self.dr_location_vector[0] = new_dr_location_vector
 
                     if self.display_windows:
+                        print("area: " + str(area))
+                        print("centroid: " + str(self.dr_centroid))
+                        print("bounding rectangle: \n" + str(self.dr_box))
+                        print("midpoint at end of rectangles: \n" + str(midpoints))
+                        print("dr location vector: \n" + str(self.dr_location_vector))
                         output = cv2.bitwise_and(self.cv_image_filtered, self.cv_image_filtered, mask=mask)
-                        #cv2.drawContours(output, [self.dr_box], 0, (0, 255, 255), 2)
+                        # cv2.drawContours(output, [self.dr_box], 0, (0, 255, 255), 2)
                         # cv2.circle(output, (self.dr_centroid[0], self.dr_centroid[1]), 5, (0, 0, 255), -1)
                         # cv2.circle(output, (midpoints[0, 0], midpoints[0, 1]), 5, (255, 0, 0), -1)
                         # cv2.circle(output, (midpoints[1, 0], midpoints[1, 1]), 5, (0, 255, 0), -1)
-                        cv2.arrowedLine(output, (self.dr_location_vector[0, 0], self.dr_location_vector[0, 1]),
-                                        (self.dr_location_vector[1, 0], self.dr_location_vector[1, 1]), (255, 255, 0),
+                        cv2.arrowedLine(output,
+                                        (int(self.dr_location_vector[0, 0, 0]), int(self.dr_location_vector[0, 0, 1])),
+                                        (int(self.dr_location_vector[0, 1, 0]), int(self.dr_location_vector[0, 1, 1])),
+                                        (255, 255, 0),
                                         3)
                         cv2.imshow("red mask", mask)
                         cv2.imshow("DR tracking", np.hstack([self.cv_image_filtered, output]))
-                    print('\n')
+                        print('\n')
         else:
             print("No image supplied to DR tracker")
 
