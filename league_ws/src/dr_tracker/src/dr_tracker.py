@@ -20,7 +20,7 @@ def midpoint(x1, y1, x2, y2):
 
 
 class TrackDR:
-    def __init__(self, display_windows=True, temporal_filtering=2, dr_contour_area_cutoff=50, cam_dist_from_ground=1,
+    def __init__(self, display_windows=True, temporal_filtering=2, dr_contour_area_cutoff=100, cam_dist_from_ground=1,
                  camera_vertical_fov=80, camera_horizontal_fov=120):
         self.acceleration = None
         self.image_pub = rospy.Publisher("dr_tracker/image_raw", Image, queue_size=1)
@@ -181,10 +181,16 @@ class TrackDR:
             self.dr_velocity = (self.dr_position - last_position) / (time.time() - self.last_update_time)
             self.dr_acceleration = (self.dr_velocity - last_velocity) / (time.time() - self.last_update_time)
             self.last_update_time = time.time()
+            # compute heading using angle between two vectors (radians)
+            v = np.array((1, 0))
+            u = (self.dr_location_vector[0, 0] - self.dr_location_vector[0, 1])
+            self.dr_heading = np.arccos(u.dot(v) / (np.sqrt(u.dot(u))*np.sqrt(v.dot(v))))
             if self.display_windows:
                 print("dr position: " + str(self.dr_position))
                 print("dr velocity: " + str(self.dr_velocity))
                 print("dr acceleration: " + str(self.dr_acceleration))
+                print("dr heading: " + str(self.dr_heading))
+                print("\n")
 
 
 if __name__ == "__main__":
