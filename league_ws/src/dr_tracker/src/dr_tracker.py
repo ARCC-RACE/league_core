@@ -8,6 +8,7 @@ import numpy as np
 import threading
 import math
 from geometry_msgs.msg import Vector3
+import time
 
 
 def dist(x1, y1, x2, y2):
@@ -19,7 +20,9 @@ def midpoint(x1, y1, x2, y2):
 
 
 class TrackDR:
-    def __init__(self, display_windows=True, temporal_filtering=2, dr_contour_area_cutoff=50):
+    def __init__(self, display_windows=True, temporal_filtering=2, dr_contour_area_cutoff=50, cam_dist_from_ground=1,
+                 camera_vertical_fov=80, camera_horizontal_fov=120):
+        self.acceleration = None
         self.image_pub = rospy.Publisher("dr_tracker/image_raw", Image, queue_size=1)
         # self.location_vector_pub = rospy.Publish("dr_tracker/location_vector", Vector3, queue_size=1)
         self.bridge = CvBridge()
@@ -34,17 +37,35 @@ class TrackDR:
         self.temporal_filtering = temporal_filtering  # the number of dr_location vectors to average (0 = no filtering)
         self.dr_location_vector = np.zeros((self.temporal_filtering + 1, 2,
                                             2))  # two points that represent the orientation and location fo the DeepRacer (first index is front)
+        # final state variables for the DeepRacer
+        self.dr_velocity = 0.0
+        self.dr_acceleration = 0.0
+        self.dr_position = 0.0
+        self.dr_heading = 0.0
+
+        self.last_update_time = time.time()  # used for finding dx/dt, dv/dt
+
+        # variables for holding information about the cameras in order to compute the velocity and absolute position of the car
+        # units = meters, degrees, seconds
+        self.dr_height = 0.17
+        self.cam_dist_from_ground = cam_dist_from_ground
+        self.camera_fov = np.array((camera_horizontal_fov, camera_vertical_fov))
+        self.camera_resolution = None
 
     def process_image(self, image):
         """Takes in image from ROS and converts it to open CV form. Begins the process of analyzing the track, the deepracer, etc."""
         try:
             self.cv_image_raw = self.bridge.imgmsg_to_cv2(image, "bgr8")
+            # print(self.cv_image_raw.shape)
+            if self.camera_resolution is None:
+                self.camera_resolution = np.array((self.cv_image_raw.shape[1], self.cv_image_raw.shape[0]))
         except CvBridgeError as e:
             print(e)
         if self.display_windows:
             cv2.imshow("Raw image window", self.cv_image_raw)
         self.filter_image()
         self.detect_dr_arrow()
+        self.compute_state()
         cv2.waitKey(3)
 
     def filter_image(self):
@@ -150,6 +171,20 @@ class TrackDR:
             self.image_pub.publish(self.bridge.cv2_to_imgmsg(image, "bgr8"))
         except CvBridgeError as e:
             print(e)
+
+    def compute_state(self):
+        if self.dr_centroid is not None:
+            last_position = self.dr_position
+            self.dr_position = self.dr_centroid * ((2.0 * (self.cam_dist_from_ground - self.dr_height) * (
+                np.tan(np.radians(self.camera_fov / 2.0)))) / self.camera_resolution)
+            last_velocity = self.dr_velocity
+            self.dr_velocity = (self.dr_position - last_position) / (time.time() - self.last_update_time)
+            self.dr_acceleration = (self.dr_velocity - last_velocity) / (time.time() - self.last_update_time)
+            self.last_update_time = time.time()
+            if self.display_windows:
+                print("dr position: " + str(self.dr_position))
+                print("dr velocity: " + str(self.dr_velocity))
+                print("dr acceleration: " + str(self.dr_acceleration))
 
 
 if __name__ == "__main__":
