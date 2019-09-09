@@ -3,9 +3,9 @@
 debug: True
 temporal_filtering: 2
 dr_contour_area_cutoff: 10
-camera_dist_from_ground: 1
-camera_vertical_fov: 80
-camera_horizontal_fov: 120
+camera_dist_from_ground: 3.86
+camera_vertical_fov: 54
+camera_horizontal_fov: 80
 dr_height: 0.17
 # camera_topic: "/usb_cam/image_raw"
 camera_topic: "/static_camera/image_raw"

@@ -6,7 +6,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 import math
-from geometry_msgs.msg import Vector3Stamped, PoseStamped, AccelStamped
+from geometry_msgs.msg import Vector3Stamped, PoseStamped, AccelStamped, TransformStamped
+from tf2_msgs.msg import TFMessage
 from std_msgs.msg import Header
 import time
 import tf
@@ -28,6 +29,7 @@ class TrackDR:
         self.image_pub = rospy.Publisher("dr_tracker/image_raw", Image, queue_size=1)
         self.pose_pub = rospy.Publisher("dr_tracker/pose", PoseStamped, queue_size=1)
         self.vel_pub = rospy.Publisher("dr_tracker/velocity", Vector3Stamped, queue_size=1)
+        self.tf_pub = rospy.Publisher("/tf", TFMessage, queue_size=1)
         self.bridge = CvBridge()
         self.display_windows = display_windows
         self.cv_image_raw = None
@@ -206,7 +208,7 @@ class TrackDR:
             header.stamp = rospy.Time.now()
             position_message = PoseStamped()
             position_message.header = header
-            orientation = tf.transformations.quaternion_from_euler(0, 0, self.dr_heading)
+            orientation = tf.transformations.quaternion_from_euler(0, 0, self.dr_heading - math.pi)
             position_message.pose.orientation.x = orientation[0]
             position_message.pose.orientation.y = orientation[1]
             position_message.pose.orientation.z = orientation[2]
@@ -223,6 +225,16 @@ class TrackDR:
 
             # acceleration_message = AccelStamped()
             # acceleration_message.header = header
+
+            tr = TransformStamped()
+            tr.header.stamp = rospy.Time.now()
+            tr.header.frame_id = "/map"
+            tr.child_frame_id = "base_link"
+            tr.transform.translation = position_message.pose.position
+            tr.transform.rotation = position_message.pose.orientation
+            tf_msg = TFMessage()
+            tf_msg.transforms.append(tr)
+            self.tf_pub.publish(tf_msg)
 
 
 if __name__ == "__main__":

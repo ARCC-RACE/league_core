@@ -10,6 +10,8 @@
     <rosparam file="$(find dr_safety_driver)/config/base_local_planner_params.yaml" command="load"/>
 <!--    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />-->
 <!--    <param name="controller_frequency" value="10.0" />-->
- </node>
+    </node>
 
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find deepracer_simulation)/urdf/racecar.xacro'" />
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find dr_safety_driver)/rviz/dr_safety_driver.rviz" />
 </launch>
