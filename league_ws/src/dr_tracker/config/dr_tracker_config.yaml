@@ -1,4 +1,11 @@
 #Config file for loading the default values for tracking the DeepRacer
 
-params:
-  param: 5
+debug: True
+temporal_filtering: 2
+dr_contour_area_cutoff: 10
+camera_dist_from_ground: 1
+camera_vertical_fov: 80
+camera_horizontal_fov: 120
+dr_height: 0.17
+# camera_topic: "/usb_cam/image_raw"
+camera_topic: "/static_camera/image_raw"

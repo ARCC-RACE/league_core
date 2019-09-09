@@ -81,7 +81,7 @@ class TrackDR:
         blur = cv2.GaussianBlur(self.cv_image_raw, (15, 15), 0)
         # if self.display_windows:
         #     cv2.imshow("Filter image window", blur)
-        #     # cv2.imshow("Blurred image window", blur)
+        #     cv2.imshow("Blurred image window", blur)
         self.cv_image_filtered = blur
 
     def detect_dr_arrow(self):
@@ -166,7 +166,6 @@ class TrackDR:
                                         (int(self.dr_location_vector[0, 1, 0]), int(self.dr_location_vector[0, 1, 1])),
                                         (255, 255, 0),
                                         3)
-                        cv2.imshow("red mask", mask)
                         cv2.imshow("DR tracking", np.hstack([self.cv_image_filtered, output]))
                         print('\n')
         else:
@@ -202,33 +201,46 @@ class TrackDR:
                 print("\n")
 
     def publish_state(self):
-        header = Header()
-        header.stamp = rospy.Time.now()
-        position_message = PoseStamped()
-        position_message.header = header
-        orientation = tf.transformations.quaternion_from_euler(0, 0, self.dr_heading)
-        position_message.pose.orientation.x = orientation[0]
-        position_message.pose.orientation.y = orientation[1]
-        position_message.pose.orientation.z = orientation[2]
-        position_message.pose.orientation.w = orientation[3]
-        position_message.pose.position.x = self.dr_position[0]
-        position_message.pose.position.y = self.dr_position[1]
-        self.pose_pub.publish(position_message)
+        if self.dr_centroid is not None:
+            header = Header()
+            header.stamp = rospy.Time.now()
+            position_message = PoseStamped()
+            position_message.header = header
+            orientation = tf.transformations.quaternion_from_euler(0, 0, self.dr_heading)
+            position_message.pose.orientation.x = orientation[0]
+            position_message.pose.orientation.y = orientation[1]
+            position_message.pose.orientation.z = orientation[2]
+            position_message.pose.orientation.w = orientation[3]
+            position_message.pose.position.x = self.dr_position[0]
+            position_message.pose.position.y = self.dr_position[1]
+            self.pose_pub.publish(position_message)
 
-        velocity_message = Vector3Stamped()
-        velocity_message.header = header
-        velocity_message.vector.x = self.dr_velocity[0]
-        velocity_message.vector.y = self.dr_velocity[1]
-        self.vel_pub.publish(velocity_message)
+            velocity_message = Vector3Stamped()
+            velocity_message.header = header
+            velocity_message.vector.x = self.dr_velocity[0]
+            velocity_message.vector.y = self.dr_velocity[1]
+            self.vel_pub.publish(velocity_message)
 
-        # acceleration_message = AccelStamped()
-        # acceleration_message.header = header
+            # acceleration_message = AccelStamped()
+            # acceleration_message.header = header
 
 
 if __name__ == "__main__":
-    DRTracker = TrackDR()
-    # private_param = rospy.get_param('~params/param')
-    # print(private_param)
     rospy.init_node("dr_tracker")
-    rospy.Subscriber("/usb_cam/image_raw", Image, DRTracker.process_image)
+
+    # ros parameters for setting up the dr tracking node
+    display_windows_param = rospy.get_param('~debug', False)
+    temporal_filtering_param = rospy.get_param('~temporal_filtering', 2)
+    dr_contour_area_cutoff_param = rospy.get_param("dr_contour_area_cutoff", 100)
+    cam_dist_from_ground_param = rospy.get_param("~camera_dist_from_ground", 1)
+    camera_vertical_fov_param = rospy.get_param("~camera_vertical_fov", 80)
+    camera_horizontal_fov_param = rospy.get_param("~camera_horizontal_fov", 120)
+    dr_height_param = rospy.get_param("~dr_height", 0.17)
+    input_camera_topic_param = rospy.get_param("~camera_topic", "/usb_cam/image_raw")
+
+    DRTracker = TrackDR(display_windows_param, temporal_filtering_param, dr_contour_area_cutoff_param,
+                        cam_dist_from_ground_param, camera_vertical_fov_param, camera_horizontal_fov_param,
+                        dr_height_param, arrow_lower=[0, 50, 90], arrow_upper=[10, 255, 255])
+
+    rospy.Subscriber(input_camera_topic_param, Image, DRTracker.process_image)
     rospy.spin()
