@@ -103,6 +103,6 @@ if __name__ == "__main__":
         name = args.n + ".pgm"
         f.write(
             "image: %s\nresolution: %f\norigin: [%d, %d, 0]\noccupied_thresh: 0.65\nfree_thresh: 0.196\nnegate: 0" %
-            (name, res, points[0][0]*0, points[0][1]*0))
+            (name, res, points[0][0]*0, -vert_factor))
         cv2.imwrite(os.path.join(args.p, name), scaled_map)
         f.close()

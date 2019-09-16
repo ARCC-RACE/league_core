@@ -50,13 +50,14 @@
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>move-base</build_depend>
-    <build_depend>map-server</build_depend>
+  <build_depend>map-server</build_depend>
   <build_depend>rospy</build_depend>
   <build_depend>teb-local-planner</build_depend>
   <build_export_depend>move-base</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
   <build_export_depend>teb-local-planner</build_export_depend>
   <exec_depend>move-base</exec_depend>
+  <exec_depend>ackermann-msgs</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>teb-local-planner</exec_depend>
 

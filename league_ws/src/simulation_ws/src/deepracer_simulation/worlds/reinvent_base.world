@@ -40,6 +40,13 @@
     <name>racetrack</name>
   </include>
 
+   <physics name="default_physics" default="true" type="ode">
+     <!-- Real time factor = max_step_size*real_time_update_rate -->
+     <max_step_size>0.0005</max_step_size>
+     <real_time_factor>1</real_time_factor>
+     <real_time_update_rate>2000</real_time_update_rate>
+   </physics>
+
 
 </world>
 </sdf>

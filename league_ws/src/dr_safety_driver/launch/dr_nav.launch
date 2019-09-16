@@ -8,10 +8,12 @@
     <rosparam file="$(find dr_safety_driver)/config/local_costmap_params.yaml" command="load" />
     <rosparam file="$(find dr_safety_driver)/config/global_costmap_params.yaml" command="load" />
     <rosparam file="$(find dr_safety_driver)/config/base_local_planner_params.yaml" command="load"/>
-<!--    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />-->
-<!--    <param name="controller_frequency" value="10.0" />-->
+    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
+    <param name="controller_frequency" value="10.0" />
     </node>
 
     <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find deepracer_simulation)/urdf/racecar.xacro'" />
+    <node type="ackermann_translator.py" name="ackermann_translator" pkg="dr_safety_driver" />
+    <node type="dr_sim_driver.py" name="dr_sim_driver" pkg="dr_safety_driver" />
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find dr_safety_driver)/rviz/dr_safety_driver.rviz" />
 </launch>

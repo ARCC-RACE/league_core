@@ -6,7 +6,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 import math
-from geometry_msgs.msg import Vector3Stamped, PoseStamped, AccelStamped, TransformStamped
+from geometry_msgs.msg import Vector3, PoseStamped, AccelStamped, TransformStamped
+from nav_msgs.msg import Odometry
 from tf2_msgs.msg import TFMessage
 from std_msgs.msg import Header
 import time
@@ -28,7 +29,7 @@ class TrackDR:
         self.acceleration = None
         self.image_pub = rospy.Publisher("dr_tracker/image_raw", Image, queue_size=1)
         self.pose_pub = rospy.Publisher("dr_tracker/pose", PoseStamped, queue_size=1)
-        self.vel_pub = rospy.Publisher("dr_tracker/velocity", Vector3Stamped, queue_size=1)
+        self.odom_pub = rospy.Publisher("/odom", Odometry, queue_size=1)
         self.tf_pub = rospy.Publisher("/tf", TFMessage, queue_size=1)
         self.bridge = CvBridge()
         self.display_windows = display_windows
@@ -45,12 +46,12 @@ class TrackDR:
         self.dr_location_vector = np.zeros((self.temporal_filtering + 1, 2,
                                             2))  # two points that represent the orientation and location fo the DeepRacer (first index is front)
         # final state variables for the DeepRacer
-        self.dr_velocity = 0.0
-        self.dr_acceleration = 0.0
-        self.dr_position = 0.0
+        self.dr_velocity = [0.0, 0.0]
+        self.dr_acceleration = [0.0, 0.0]
+        self.dr_position = [0.0, 0.0]
         self.dr_heading = 0.0
         self.dr_angular_accel = 0.0
-
+        self.dr_angular_vel = 0.0
         self.last_update_time = time.time()  # used for finding dx/dt, dv/dt
 
         # variables for holding information about the cameras in order to compute the velocity and absolute position of the car
@@ -192,9 +193,11 @@ class TrackDR:
             # compute heading using angle between two vectors (radians)
             v = np.array((1, 0))
             u = (self.dr_location_vector[0, 0] - self.dr_location_vector[0, 1])
-            self.dr_heading = np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
+            self.dr_heading = math.pi - np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
             if self.dr_location_vector[0, 0, 1] < self.dr_location_vector[0, 1, 1]:
                 self.dr_heading = 2 * math.pi - self.dr_heading
+            last_heading = self.dr_heading
+            self.dr_angular_vel = (self.dr_heading - last_heading) / (time.time() - self.last_update_time)
             if self.display_windows:
                 print("dr position: " + str(self.dr_position))
                 print("dr velocity: " + str(self.dr_velocity))
@@ -205,30 +208,34 @@ class TrackDR:
     def publish_state(self):
         if self.dr_centroid is not None:
             header = Header()
+            header.frame_id = "/base_link"
             header.stamp = rospy.Time.now()
             position_message = PoseStamped()
             position_message.header = header
-            orientation = tf.transformations.quaternion_from_euler(0, 0, self.dr_heading - math.pi)
+            orientation = tf.transformations.quaternion_from_euler(0, 0, self.dr_heading)
+            # rospy.logerr(self.dr_heading)
             position_message.pose.orientation.x = orientation[0]
             position_message.pose.orientation.y = orientation[1]
             position_message.pose.orientation.z = orientation[2]
             position_message.pose.orientation.w = orientation[3]
             position_message.pose.position.x = self.dr_position[0]
-            position_message.pose.position.y = self.dr_position[1]
+            position_message.pose.position.y = -self.dr_position[1]
             self.pose_pub.publish(position_message)
 
-            velocity_message = Vector3Stamped()
-            velocity_message.header = header
-            velocity_message.vector.x = self.dr_velocity[0]
-            velocity_message.vector.y = self.dr_velocity[1]
-            self.vel_pub.publish(velocity_message)
+            odom_msg = Odometry()
+            odom_msg.header = header
+            odom_msg.pose.pose = position_message.pose
+            odom_msg.twist.twist.linear.x = self.dr_velocity[0]
+            odom_msg.twist.twist.linear.y = -self.dr_velocity[1]
+            odom_msg.twist.twist.angular.z = self.dr_angular_vel
+            self.odom_pub.publish(odom_msg)
 
             # acceleration_message = AccelStamped()
             # acceleration_message.header = header
 
             tr = TransformStamped()
             tr.header.stamp = rospy.Time.now()
-            tr.header.frame_id = "/map"
+            tr.header.frame_id = "map"
             tr.child_frame_id = "base_link"
             tr.transform.translation = position_message.pose.position
             tr.transform.rotation = position_message.pose.orientation
