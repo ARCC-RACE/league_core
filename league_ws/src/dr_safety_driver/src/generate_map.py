@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', help="image subscriber topic name", default="/usb_cam/image_raw")
     parser.add_argument('-f', help="horizontal FOV", default=120, type=int)
     parser.add_argument('-v', help="vertical FOV", default=80, type=int)
-    parser.add_argument('-d', help="distance from ground to camera (in meters)", default="2", type=int)
+    parser.add_argument('-d', help="distance from ground to camera (in meters)", default=2.0, type=float)
     parser.add_argument('-p', help="file path to save pgm and yaml map", default="../maps")
     parser.add_argument('-n', help="name of map", default="map")
     args = parser.parse_args()
@@ -102,6 +102,6 @@ if __name__ == "__main__":
         name = args.n + ".pgm"
         f.write(
             "image: %s\nresolution: %f\norigin: [%d, %d, 0]\noccupied_thresh: 0.65\nfree_thresh: 0.196\nnegate: 0" %
-            (name, res, points[0][0]*0, -vert_factor))
+            (name, res, points[0][0]*0, -vert_factor*res))
         cv2.imwrite(os.path.join(args.p, name), scaled_map)
         f.close()
