@@ -61,6 +61,10 @@ class TrackDR:
         self.camera_fov = np.array((camera_horizontal_fov, camera_vertical_fov))
         self.camera_resolution = None
 
+    def update_arrow_mask(self, arrow_lower_hue, arrow_lower_sat, arrow_lower_value, arrow_upper_hue, arrow_upper_sat, arrow_upper_val):
+        self.arrow_lower = [arrow_lower_hue, arrow_lower_sat, arrow_lower_value]
+        self.arrow_upper = [arrow_upper_hue, arrow_upper_sat, arrow_upper_val]
+
     def process_image(self, image):
         """Takes in image from ROS and converts it to open CV form. Begins the process of analyzing the track, the deepracer, etc."""
         try:
@@ -97,7 +101,9 @@ class TrackDR:
 
             # find the colors within the specified boundaries and apply
             # the mask
-            mask = cv2.inRange(hsv, low_red, high_red)  # create a mask that only looks at the red arrow
+            mask1 = cv2.inRange(hsv, low_red, high_red)  # create a mask that only looks at the red arrow
+            mask2 = cv2.inRange(hsv, np.array([0, 50, 90]), np.array([5, 255, 255]))
+            mask = mask1 | mask2  # combine both HSV red fields
             _, contours, _ = cv2.findContours(mask, 1,
                                               2)  # find contour in mask to mark the area, bounding box, and centroid
             for cnt in contours:
@@ -259,7 +265,7 @@ if __name__ == "__main__":
 
     DRTracker = TrackDR(display_windows_param, temporal_filtering_param, dr_contour_area_cutoff_param,
                         cam_dist_from_ground_param, camera_vertical_fov_param, camera_horizontal_fov_param,
-                        dr_height_param, arrow_lower=[0, 50, 90], arrow_upper=[10, 255, 255])
+                        dr_height_param, arrow_lower=[170, 50, 90], arrow_upper=[180, 255, 255])
 
     rospy.Subscriber(input_camera_topic_param, Image, DRTracker.process_image)
     rospy.spin()

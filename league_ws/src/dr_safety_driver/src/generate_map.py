@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-from PIL import Image as Imager
 import os
 import cv2
 import rospy

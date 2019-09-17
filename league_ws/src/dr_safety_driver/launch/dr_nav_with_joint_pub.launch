@@ -1,0 +1,6 @@
+<launch>
+ <!-- Run the map server -->
+ <include file="$(find dr_safety_driver)/launch/dr_nav.launch"/>
+  <!-- ros_control racecar launch file -->
+  <include file="$(find deepracer_simulation)/launch/racecar_control.launch" ns="/"/>
+</launch>

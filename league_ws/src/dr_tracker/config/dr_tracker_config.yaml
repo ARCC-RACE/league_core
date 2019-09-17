@@ -7,5 +7,5 @@ camera_dist_from_ground: 3.86
 camera_vertical_fov: 54
 camera_horizontal_fov: 80
 dr_height: 0.17
-# camera_topic: "/usb_cam/image_raw"
-camera_topic: "/static_camera/image_raw"
+camera_topic: "/usb_cam/image_raw"
+#camera_topic: "/static_camera/image_raw"

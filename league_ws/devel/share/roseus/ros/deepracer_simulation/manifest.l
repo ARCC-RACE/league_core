@@ -5,6 +5,7 @@
 ;;  FROM /home/michael/Github/league_core/league_ws/src/simulation_ws/src/deepracer_simulation/package.xml (1.0.0)
 ;; USING /opt/ros/melodic/lib/python2.7/dist-packages/geneus/geneus_main.pyc /opt/ros/melodic/share/geneus/package.xml (2.2.6)
 ;;
+(ros::load-ros-package "ackermann_msgs")
 (ros::load-ros-package "actionlib")
 (ros::load-ros-package "actionlib_msgs")
 (ros::load-ros-package "bond")
