@@ -12,6 +12,7 @@ Core files for running automated ARCC League
 ## league_ws ROS setup
 1. Install ROS melodic
 2. `rosdep install --from-paths src --ignore-src -r -y`
+3. Calibrate Camera with tutorial [here]("http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration")
 
 ## Getting Started
 Once you have followed the setup instructions you can begin running ACC League software!
