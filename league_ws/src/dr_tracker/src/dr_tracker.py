@@ -25,7 +25,7 @@ def midpoint(x1, y1, x2, y2):
 class TrackDR:
     def __init__(self, display_windows=True, temporal_filtering=2, dr_contour_area_cutoff=100, cam_dist_from_ground=1,
                  camera_vertical_fov=80, camera_horizontal_fov=120, dr_height=0.17, arrow_lower=[170, 50, 90],
-                 arrow_upper=[200, 255, 255]):
+                 arrow_upper=[200, 255, 255], arrow_lower_0=[0, 50, 90], arrow_upper_0=[5, 255, 255], blur_param=9):
         self.acceleration = None
         self.image_pub = rospy.Publisher("dr_tracker/image_raw", Image, queue_size=1)
         self.pose_pub = rospy.Publisher("dr_tracker/pose", PoseStamped, queue_size=1)
@@ -40,6 +40,8 @@ class TrackDR:
         self.dr_contour_area_cutoff = dr_contour_area_cutoff
         self.arrow_lower = arrow_lower
         self.arrow_upper = arrow_upper
+        self.arrow_lower_0 = arrow_lower_0
+        self.arrow_upper_0 = arrow_upper_0  # for the second red mask level (H: 0-10)
         # self.last_bounding_rect = None
         # self.last_centroid = None
         self.temporal_filtering = temporal_filtering  # the number of dr_location vectors to average (0 = no filtering)
@@ -61,7 +63,11 @@ class TrackDR:
         self.camera_fov = np.array((camera_horizontal_fov, camera_vertical_fov))
         self.camera_resolution = None
 
-    def update_arrow_mask(self, arrow_lower_hue, arrow_lower_sat, arrow_lower_value, arrow_upper_hue, arrow_upper_sat, arrow_upper_val):
+        # other image processing variables
+        self.blur_param = blur_param
+
+    def update_arrow_mask(self, arrow_lower_hue, arrow_lower_sat, arrow_lower_value, arrow_upper_hue, arrow_upper_sat,
+                          arrow_upper_val):
         self.arrow_lower = [arrow_lower_hue, arrow_lower_sat, arrow_lower_value]
         self.arrow_upper = [arrow_upper_hue, arrow_upper_sat, arrow_upper_val]
 
@@ -85,7 +91,7 @@ class TrackDR:
     def filter_image(self):
         # median = cv2.medianBlur(image, 9)
         # blur = cv2.bilateralFilter(image, 9, 75, 75)
-        blur = cv2.GaussianBlur(self.cv_image_raw, (15, 15), 0)
+        blur = cv2.GaussianBlur(self.cv_image_raw, (self.blur_param, self.blur_param), 0)
         # if self.display_windows:
         #     cv2.imshow("Filter image window", blur)
         #     cv2.imshow("Blurred image window", blur)
@@ -102,7 +108,7 @@ class TrackDR:
             # find the colors within the specified boundaries and apply
             # the mask
             mask1 = cv2.inRange(hsv, low_red, high_red)  # create a mask that only looks at the red arrow
-            mask2 = cv2.inRange(hsv, np.array([0, 50, 90]), np.array([5, 255, 255]))
+            mask2 = cv2.inRange(hsv, np.array(self.arrow_lower_0), np.array(self.arrow_upper_0))
             mask = mask1 | mask2  # combine both HSV red fields
             _, contours, _ = cv2.findContours(mask, 1,
                                               2)  # find contour in mask to mark the area, bounding box, and centroid
@@ -190,8 +196,9 @@ class TrackDR:
     def compute_state(self):
         if self.dr_centroid is not None:
             last_position = self.dr_position
-            self.dr_position = self.dr_centroid * ((2.0 * (self.cam_dist_from_ground - self.dr_height) * (
-                np.tan(np.radians(self.camera_fov / 2.0)))) / self.camera_resolution)
+            print("Resoltuion: " + str(self.camera_resolution))
+            self.dr_position = (self.dr_centroid / (self.camera_resolution*1.0)) * (2.0 * (self.cam_dist_from_ground - self.dr_height) * (
+                np.tan(np.radians(self.camera_fov / 2.0))))
             last_velocity = self.dr_velocity
             self.dr_velocity = (self.dr_position - last_position) / (time.time() - self.last_update_time)
             self.dr_acceleration = (self.dr_velocity - last_velocity) / (time.time() - self.last_update_time)
@@ -219,7 +226,7 @@ class TrackDR:
             position_message = PoseStamped()
             position_message.header = header
             orientation = tf.transformations.quaternion_from_euler(0, 0, self.dr_heading)
-            # rospy.logerr(self.dr_heading)
+
             position_message.pose.orientation.x = orientation[0]
             position_message.pose.orientation.y = orientation[1]
             position_message.pose.orientation.z = orientation[2]
@@ -231,8 +238,23 @@ class TrackDR:
             odom_msg = Odometry()
             odom_msg.header = header
             odom_msg.pose.pose = position_message.pose
-            odom_msg.twist.twist.linear.x = self.dr_velocity[0]
-            odom_msg.twist.twist.linear.y = -self.dr_velocity[1]
+
+            # Change veocity frame to match that of the DeepRacer
+            speed = math.sqrt(self.dr_velocity[0] ** 2 + self.dr_velocity[1] ** 2)
+            v = np.array((1, 0))
+            u = np.array(self.dr_velocity)
+            direction = math.pi - np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
+            # if the velocity direction and the heading are in opposite directions then the DR is moving backward
+            if self.dr_velocity[1] < self.dr_velocity[0]:
+                direction = 2 * math.pi - direction
+            if direction < self.dr_heading - math.pi/2 or direction > self.dr_heading + math.pi/2:
+                velocity = speed
+            else:
+                velocity = speed * -1
+
+            odom_msg.twist.twist.linear.x = velocity
+            # odom_msg.twist.twist.linear.x = self.dr_velocity[0]
+            # odom_msg.twist.twist.linear.y = -self.dr_velocity[1]
             odom_msg.twist.twist.angular.z = self.dr_angular_vel
             self.odom_pub.publish(odom_msg)
 
@@ -260,12 +282,17 @@ if __name__ == "__main__":
     cam_dist_from_ground_param = rospy.get_param("~camera_dist_from_ground", 1)
     camera_vertical_fov_param = rospy.get_param("~camera_vertical_fov", 80)
     camera_horizontal_fov_param = rospy.get_param("~camera_horizontal_fov", 120)
-    dr_height_param = rospy.get_param("~dr_height", 0.17)
+    dr_height_param = rospy.get_param("~dr_height", 0.0254)
+    blur_param = rospy.get_param("~blur_param", 9)
     input_camera_topic_param = rospy.get_param("~camera_topic", "/usb_cam/image_raw")
+    red_mask = map(int, rospy.get_param("~red_mask", "170, 50, 90, 180, 255, 255, 0, 50, 90, 5, 255, 255").split(','))
 
     DRTracker = TrackDR(display_windows_param, temporal_filtering_param, dr_contour_area_cutoff_param,
                         cam_dist_from_ground_param, camera_vertical_fov_param, camera_horizontal_fov_param,
-                        dr_height_param, arrow_lower=[170, 50, 90], arrow_upper=[180, 255, 255])
+                        dr_height_param, blur_param=blur_param, arrow_lower=[red_mask[0], red_mask[1], red_mask[2]],
+                        arrow_upper=[red_mask[3], red_mask[4], red_mask[5]],
+                        arrow_lower_0=[red_mask[6], red_mask[7], red_mask[8]],
+                        arrow_upper_0=[red_mask[9], red_mask[10], red_mask[11]])
 
     rospy.Subscriber(input_camera_topic_param, Image, DRTracker.process_image)
     rospy.spin()

@@ -34,6 +34,6 @@ def set_throttle_steer(data):
 
 
 if __name__ == '__main__':
-    rospy.init_node("ackermann_translator")
+    rospy.init_node("dr_sim_driver")
     rospy.Subscriber("/ackermann_cmd", AckermannDriveStamped, set_throttle_steer)
     rospy.spin()

@@ -1,5 +1,5 @@
 <launch>
-    <node name="dr_tracker" pkg="dr_tracker" type="dr_tracker.py">
+    <node name="dr_tracker" pkg="dr_tracker" type="dr_tracker.py" output="screen">
         <rosparam command="load" file="$(find dr_tracker)/config/dr_tracker_config.yaml" />
     </node>
 </launch>

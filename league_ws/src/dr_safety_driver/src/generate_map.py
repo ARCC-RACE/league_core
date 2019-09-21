@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     rospy.init_node("map_generator")
     parser = argparse.ArgumentParser(description='Map generator arguments')
-    parser.add_argument('-s', help="image subscriber topic name", default="/usb_cam/image_raw")
+    parser.add_argument('-s', help="image subscriber topic name", default="/usb_cam/image_rect_color")
     parser.add_argument('-f', help="horizontal FOV", default=120, type=int)
     parser.add_argument('-v', help="vertical FOV", default=80, type=int)
     parser.add_argument('-d', help="distance from ground to camera (in meters)", default=2.0, type=float)
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         f = open(os.path.join(args.p, args.n) + ".yaml", "w+")
         name = args.n + ".pgm"
         f.write(
-            "image: %s\nresolution: %f\norigin: [%d, %d, 0]\noccupied_thresh: 0.65\nfree_thresh: 0.196\nnegate: 0" %
+            "image: %s\nresolution: %f\norigin: [%f, %f, 0]\noccupied_thresh: 0.65\nfree_thresh: 0.196\nnegate: 0" %
             (name, res, points[0][0]*0, -vert_factor*res))
         cv2.imwrite(os.path.join(args.p, name), scaled_map)
         f.close()

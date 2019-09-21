@@ -57,6 +57,7 @@
   <build_export_depend>rospy</build_export_depend>
   <build_export_depend>teb-local-planner</build_export_depend>
   <exec_depend>move-base</exec_depend>
+  <exec_depend>pid</exec_depend>
   <exec_depend>ackermann-msgs</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>teb-local-planner</exec_depend>
