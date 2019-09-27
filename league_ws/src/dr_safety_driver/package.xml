@@ -50,6 +50,8 @@
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>move-base</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>robot-localization</build_depend>
   <build_depend>map-server</build_depend>
   <build_depend>rospy</build_depend>
   <build_depend>teb-local-planner</build_depend>

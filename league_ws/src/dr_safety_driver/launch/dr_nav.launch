@@ -12,11 +12,11 @@
      <param name="controller_frequency" value="10.0" />
    </node>
 
-    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find deepracer_simulation)/urdf/racecar.xacro'" />
-
     <node type="ackermann_translator.py" name="ackermann_translator" pkg="dr_safety_driver" />
 
     <node type="dr_sim_driver.py" name="dr_sim_driver" pkg="dr_safety_driver" />
+
+    <include file="$(find dr_safety_driver)/launch/localization.launch"/>
 
     <node name="drive_pid" pkg="pid" type="controller" ns="drive_pid">
       <param name="Kp" value="0.8" />

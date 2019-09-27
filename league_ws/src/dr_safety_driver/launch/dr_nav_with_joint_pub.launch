@@ -2,5 +2,7 @@
  <!-- Run the map server -->
  <include file="$(find dr_safety_driver)/launch/dr_nav.launch"/>
   <!-- ros_control racecar launch file -->
+
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find deepracer_simulation)/urdf/racecar.xacro'" />
   <include file="$(find deepracer_simulation)/launch/racecar_control.launch" ns="/"/>
 </launch>

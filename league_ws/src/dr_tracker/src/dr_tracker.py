@@ -196,9 +196,9 @@ class TrackDR:
     def compute_state(self):
         if self.dr_centroid is not None:
             last_position = self.dr_position
-            print("Resoltuion: " + str(self.camera_resolution))
-            self.dr_position = (self.dr_centroid / (self.camera_resolution*1.0)) * (2.0 * (self.cam_dist_from_ground - self.dr_height) * (
-                np.tan(np.radians(self.camera_fov / 2.0))))
+            self.dr_position = (self.dr_centroid / (self.camera_resolution * 1.0)) * (
+                        2.0 * (self.cam_dist_from_ground - self.dr_height) * (
+                    np.tan(np.radians(self.camera_fov / 2.0))))
             last_velocity = self.dr_velocity
             self.dr_velocity = (self.dr_position - last_position) / (time.time() - self.last_update_time)
             self.dr_acceleration = (self.dr_velocity - last_velocity) / (time.time() - self.last_update_time)
@@ -221,7 +221,7 @@ class TrackDR:
     def publish_state(self):
         if self.dr_centroid is not None:
             header = Header()
-            header.frame_id = "/base_link"
+            header.frame_id = "map"
             header.stamp = rospy.Time.now()
             position_message = PoseStamped()
             position_message.header = header
@@ -233,43 +233,27 @@ class TrackDR:
             position_message.pose.orientation.w = orientation[3]
             position_message.pose.position.x = self.dr_position[0]
             position_message.pose.position.y = -self.dr_position[1]
-            self.pose_pub.publish(position_message)
+            # self.pose_pub.publish(position_message)
 
             odom_msg = Odometry()
             odom_msg.header = header
+            odom_msg.child_frame_id = "odom"
             odom_msg.pose.pose = position_message.pose
 
-            # Change veocity frame to match that of the DeepRacer
-            speed = math.sqrt(self.dr_velocity[0] ** 2 + self.dr_velocity[1] ** 2)
-            v = np.array((1, 0))
-            u = np.array(self.dr_velocity)
-            direction = math.pi - np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
-            # if the velocity direction and the heading are in opposite directions then the DR is moving backward
-            if self.dr_velocity[1] < self.dr_velocity[0]:
-                direction = 2 * math.pi - direction
-            if direction < self.dr_heading - math.pi/2 or direction > self.dr_heading + math.pi/2:
-                velocity = speed
-            else:
-                velocity = speed * -1
-
-            odom_msg.twist.twist.linear.x = velocity
-            # odom_msg.twist.twist.linear.x = self.dr_velocity[0]
-            # odom_msg.twist.twist.linear.y = -self.dr_velocity[1]
+            odom_msg.twist.twist.linear.x = self.dr_velocity[0]
+            odom_msg.twist.twist.linear.y = -self.dr_velocity[1]
             odom_msg.twist.twist.angular.z = self.dr_angular_vel
+            # odom_msg.pose.covariance = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+            # odom_msg.twist.covariance = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
             self.odom_pub.publish(odom_msg)
 
-            # acceleration_message = AccelStamped()
-            # acceleration_message.header = header
-
-            tr = TransformStamped()
-            tr.header.stamp = rospy.Time.now()
-            tr.header.frame_id = "map"
-            tr.child_frame_id = "base_link"
-            tr.transform.translation = position_message.pose.position
-            tr.transform.rotation = position_message.pose.orientation
-            tf_msg = TFMessage()
-            tf_msg.transforms.append(tr)
-            self.tf_pub.publish(tf_msg)
+            br = tf.TransformBroadcaster()
+            br.sendTransform(
+                (odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y, odom_msg.pose.pose.position.z),
+                orientation,
+                rospy.Time.now(),
+                "base_link",
+                "odom")
 
 
 if __name__ == "__main__":

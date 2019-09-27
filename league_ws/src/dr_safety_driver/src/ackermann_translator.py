@@ -73,3 +73,18 @@ if __name__ == '__main__':
     rospy.Subscriber("/drive_pid/control_effort", Float64, new_speed)
     rospy.Subscriber("/odom", Odometry, new_state)  # for updating state
     rospy.spin()
+
+
+#speed = math.sqrt(self.dr_velocity[0] ** 2 + self.dr_velocity[1] ** 2)
+            # v = np.array((1, 0))
+            # u = np.array(self.dr_velocity)
+            # direction = math.pi - np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
+            # # if the velocity direction and the heading are in opposite directions then the DR is moving backward
+            # if self.dr_velocity[1] < self.dr_velocity[0]:
+            #     direction = 2 * math.pi - direction
+            # if direction < self.dr_heading - math.pi / 2 or direction > self.dr_heading + math.pi / 2:
+            #     velocity = speed
+            # else:
+            #     velocity = speed * -1
+            #
+            # odom_msg.twist.twist.linear.x = velocity
