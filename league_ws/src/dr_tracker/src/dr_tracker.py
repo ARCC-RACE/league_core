@@ -197,8 +197,8 @@ class TrackDR:
         if self.dr_centroid is not None:
             last_position = self.dr_position
             self.dr_position = (self.dr_centroid / (self.camera_resolution * 1.0)) * (
-                        2.0 * (self.cam_dist_from_ground - self.dr_height) * (
-                    np.tan(np.radians(self.camera_fov / 2.0))))
+                    2.0 * (self.cam_dist_from_ground - self.dr_height) * (
+                np.tan(np.radians(self.camera_fov / 2.0))))
             last_velocity = self.dr_velocity
             self.dr_velocity = (self.dr_position - last_position) / (time.time() - self.last_update_time)
             self.dr_acceleration = (self.dr_velocity - last_velocity) / (time.time() - self.last_update_time)
@@ -243,8 +243,19 @@ class TrackDR:
             odom_msg.twist.twist.linear.x = self.dr_velocity[0]
             odom_msg.twist.twist.linear.y = -self.dr_velocity[1]
             odom_msg.twist.twist.angular.z = self.dr_angular_vel
-            # odom_msg.pose.covariance = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-            # odom_msg.twist.covariance = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+            # (x, y, z, rotation about X axis, rotation about Y axis, rotation about Z axis)
+            odom_msg.pose.covariance = [0.1, 0, 0, 0, 0, 0,
+                                        0, 0.1, 0, 0, 0, 0,
+                                        0, 0, 0.1, 0, 0, 0,
+                                        0, 0, 0, 0.1, 0, 0,
+                                        0, 0, 0, 0, 0.1, 0,
+                                        0, 0, 0, 0, 0, 0.1]
+            odom_msg.twist.covariance = [0.1, 0, 0, 0, 0, 0,
+                                         0, 0.1, 0, 0, 0, 0,
+                                         0, 0, 0.1, 0, 0, 0,
+                                         0, 0, 0, 0.1, 0, 0,
+                                         0, 0, 0, 0, 0.1, 0,
+                                         0, 0, 0, 0, 0, 0.1]
             self.odom_pub.publish(odom_msg)
 
             br = tf.TransformBroadcaster()

@@ -7,10 +7,11 @@ from std_msgs.msg import Float64
 from std_msgs.msg import Header
 from nav_msgs.msg import Odometry
 import math
+import numpy as np
+import tf
 
 
 # converts cmd_vel to ackermann_msgs and update PID
-
 def convert_trans_rot_vel_to_steering_angle(v, omega, wheelbase):
     if omega == 0 or v == 0:
         return 0
@@ -37,7 +38,7 @@ def new_speed(effort):
 
 
 def new_cmd(data):
-    # update PID
+    # update PID with current velocity with reference to car frame
     state_pub = rospy.Publisher('/drive_pid/setpoint', Float64, queue_size=1)
     state_pub.publish(Float64(data.linear.x))
 
@@ -59,8 +60,35 @@ def new_cmd(data):
 
 
 def new_state(odom):
+    # get heading in radians (yaw)
+    quaternion = (
+        odom.pose.pose.orientation.x,
+        odom.pose.pose.orientation.y,
+        odom.pose.pose.orientation.z,
+        odom.pose.pose.orientation.w)
+    heading = tf.transformations.euler_from_quaternion(quaternion)[2]
+
+    # convert x/y velocity into speed with heading (direction) relative to car
+    speed = math.sqrt(odom.twist.twist.linear.x ** 2 + odom.twist.twist.linear.y ** 2)
+    v = np.array([math.cos(heading), math.sin(heading)])
+    u = np.array([odom.twist.twist.linear.x, odom.twist.twist.linear.y])
+    print(v)
+    print(u)
+    # compute the angle between the heading unit vector and velocity vector
+    if (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))) == 0:
+        diff_direction = 0
+    else:
+        diff_direction = np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
+    print("angle between vectors: " + str(diff_direction))
+    # if the velocity direction and the heading are in opposite directions then the DR is moving backward
+    # get the difference between the heading and direction vectors
+    if diff_direction > math.pi / 2:
+        current_velocity = -speed
+    else:
+        current_velocity = speed
+
     state_pub = rospy.Publisher('/drive_pid/state', Float64, queue_size=1)
-    state_pub.publish(Float64(odom.twist.twist.linear.x))
+    state_pub.publish(Float64(current_velocity))
 
 
 if __name__ == '__main__':
@@ -69,22 +97,8 @@ if __name__ == '__main__':
     velocity = 0
     steering = 0
     wheelbase = rospy.get_param("~wheelbase", 0.16)
+    odom_topic = rospy.get_param("~odom_topic", "/odometry/filtered")
+    rospy.Subscriber(odom_topic, Odometry, new_state)  # for updating state
     rospy.Subscriber("/cmd_vel", Twist, new_cmd)
     rospy.Subscriber("/drive_pid/control_effort", Float64, new_speed)
-    rospy.Subscriber("/odom", Odometry, new_state)  # for updating state
     rospy.spin()
-
-
-#speed = math.sqrt(self.dr_velocity[0] ** 2 + self.dr_velocity[1] ** 2)
-            # v = np.array((1, 0))
-            # u = np.array(self.dr_velocity)
-            # direction = math.pi - np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
-            # # if the velocity direction and the heading are in opposite directions then the DR is moving backward
-            # if self.dr_velocity[1] < self.dr_velocity[0]:
-            #     direction = 2 * math.pi - direction
-            # if direction < self.dr_heading - math.pi / 2 or direction > self.dr_heading + math.pi / 2:
-            #     velocity = speed
-            # else:
-            #     velocity = speed * -1
-            #
-            # odom_msg.twist.twist.linear.x = velocity

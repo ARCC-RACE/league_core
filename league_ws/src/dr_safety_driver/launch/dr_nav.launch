@@ -12,7 +12,7 @@
      <param name="controller_frequency" value="10.0" />
    </node>
 
-    <node type="ackermann_translator.py" name="ackermann_translator" pkg="dr_safety_driver" />
+    <node type="ackermann_translator.py" name="ackermann_translator" pkg="dr_safety_driver" output="screen"/>
 
     <node type="dr_sim_driver.py" name="dr_sim_driver" pkg="dr_safety_driver" />
 
