@@ -244,12 +244,13 @@ class TrackDR:
             odom_msg.twist.twist.linear.y = -self.dr_velocity[1]
             odom_msg.twist.twist.angular.z = self.dr_angular_vel
             # (x, y, z, rotation about X axis, rotation about Y axis, rotation about Z axis)
-            odom_msg.pose.covariance = [0.1, 0, 0, 0, 0, 0,
-                                        0, 0.1, 0, 0, 0, 0,
-                                        0, 0, 0.1, 0, 0, 0,
-                                        0, 0, 0, 0.1, 0, 0,
-                                        0, 0, 0, 0, 0.1, 0,
-                                        0, 0, 0, 0, 0, 0.1]
+            odom_msg.pose.covariance = [3.80442931e-03, 0, 0, 0, 0, 0,
+                                        0, 2.50676363e-02, 0, 0, 0, 0,
+                                        0, 0, 3.12128576e-06, 0, 0, 0,
+                                        0, 0, 0, 3.12128549e-06, 0, 0,
+                                        0, 0, 0, 0, 3.07782439e-06, 0,
+                                        0, 0, 0, 0, 0, 1.97498822e-01]
+            # this is not factored into the current version of the kalman filter
             odom_msg.twist.covariance = [0.1, 0, 0, 0, 0, 0,
                                          0, 0.1, 0, 0, 0, 0,
                                          0, 0, 0.1, 0, 0, 0,
@@ -273,7 +274,7 @@ if __name__ == "__main__":
     # ros parameters for setting up the dr tracking node
     display_windows_param = rospy.get_param('~debug', False)
     temporal_filtering_param = rospy.get_param('~temporal_filtering', 2)
-    dr_contour_area_cutoff_param = rospy.get_param("dr_contour_area_cutoff", 100)
+    dr_contour_area_cutoff_param = rospy.get_param("~dr_contour_area_cutoff", 100)
     cam_dist_from_ground_param = rospy.get_param("~camera_dist_from_ground", 1)
     camera_vertical_fov_param = rospy.get_param("~camera_vertical_fov", 80)
     camera_horizontal_fov_param = rospy.get_param("~camera_horizontal_fov", 120)
