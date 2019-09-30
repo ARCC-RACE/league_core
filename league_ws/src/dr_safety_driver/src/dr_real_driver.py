@@ -26,13 +26,14 @@ def update_car(data):
     # compute steering ang -30deg to 30deg
     steer = constrain(data.drive.steering_angle, -math.pi/6, math.pi/6)
     steer = range_map(steer, -math.pi/6, math.pi/6, -1.0, 1.0)
-    drive = constrain(data.drive.speed, -1.0, 1.0)
-    rospy.loginfo("Steer Raw: %f Steer: %f Drive: %f" % (data.drive.steering_angle, steer, drive))
+    drive = data.drive.speed
     if drive > 0:
         drive *= 0.5
     else:
-        drive *= 1.2
-    car.send_drive_command(steer * -1.0, drive*-1.0)
+        drive *= 1.5
+    drive = constrain(drive, -1.0, 1.0)
+    rospy.loginfo("Steer Raw: %f Steer: %f Drive: %f" % (data.drive.steering_angle, steer, drive))
+    car.send_drive_command(steer * -1.0, drive * -1.0)
 
 
 if __name__ == '__main__':
