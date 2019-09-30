@@ -22,28 +22,32 @@ def constrain(x, min, max):
 
 
 def update_car(data):
-    global car
+    global drive, steer
     # compute steering ang -30deg to 30deg
-    steer = constrain(data.drive.steering_angle, -math.pi/6, math.pi/6)
-    steer = range_map(steer, -math.pi/6, math.pi/6, -1.0, 1.0)
+    steer = constrain(data.drive.steering_angle, -math.pi / 6, math.pi / 6)
+    steer = range_map(steer, -math.pi / 6, math.pi / 6, -1.0, 1.0)
     drive = data.drive.speed
-    if drive > 0:
-        drive *= 0.5
-    else:
-        drive *= 1.5
+    # handle deadzones
+    if -0.1 < drive < 0.1:
+        drive = 0
+    elif drive > 0:
+        drive = 0.65
+    elif drive < 0:
+        drive = -0.6
     drive = constrain(drive, -1.0, 1.0)
     rospy.loginfo("Steer Raw: %f Steer: %f Drive: %f" % (data.drive.steering_angle, steer, drive))
-    car.send_drive_command(steer * -1.0, drive * -1.0)
 
 
 if __name__ == '__main__':
     rospy.init_node("dr_real_driver")
-    global car
+    global drive, steer
+    drive = 0
+    steer = 0
     car = DRInterface("uGRqirr3", '192.168.1.101')
     car.log_on()
     car.set_manual_mode()
     car.start_car()
     rospy.Subscriber("/ackermann_cmd", AckermannDriveStamped, update_car)
     while not rospy.is_shutdown():
-        pass
+        car.send_drive_command(steer * -1.0, drive * -1.0)
     car.stop_car()

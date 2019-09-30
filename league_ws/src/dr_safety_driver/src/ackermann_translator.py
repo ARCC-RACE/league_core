@@ -61,12 +61,12 @@ def new_cmd(data):
 
 def new_state(odom):
     # get heading in radians (yaw)
-    quaternion = (
-        odom.pose.pose.orientation.x,
-        odom.pose.pose.orientation.y,
-        odom.pose.pose.orientation.z,
-        odom.pose.pose.orientation.w)
-    heading = tf.transformations.euler_from_quaternion(quaternion)[2]
+    # quaternion = (
+    #     odom.pose.pose.orientation.x,
+    #     odom.pose.pose.orientation.y,
+    #     odom.pose.pose.orientation.z,
+    #     odom.pose.pose.orientation.w)
+    # heading = tf.transformations.euler_from_quaternion(quaternion)[2]
 
     # convert x/y velocity into speed with heading (direction) relative to car
     speed = math.sqrt(odom.twist.twist.linear.x ** 2 + odom.twist.twist.linear.y ** 2)
@@ -77,11 +77,10 @@ def new_state(odom):
     #     diff_direction = 0
     # else:
     #     diff_direction = np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
-    print("heading" + str(heading))
     direction = 0
     if odom.twist.twist.linear.x != 0:
         direction = math.atan(odom.twist.twist.linear.y/odom.twist.twist.linear.x)
-        if odom.twist.twist.linear.x < 0:
+        if odom.twist.twist.linear.x < 0 and direction != 0:
             direction = direction / abs(direction) * (abs(direction)+math.pi/2)
         # a = heading - direction
         # print("direction: " + str(direction))

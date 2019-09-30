@@ -2,7 +2,7 @@
 
 debug: True
 temporal_filtering: 0
-dr_contour_area_cutoff: 100
+dr_contour_area_cutoff: 40
 camera_dist_from_ground: 2.0828
 camera_vertical_fov: 60
 camera_horizontal_fov: 80

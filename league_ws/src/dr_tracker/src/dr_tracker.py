@@ -260,9 +260,15 @@ class TrackDR:
             self.odom_pub.publish(odom_msg)
 
             br = tf.TransformBroadcaster()
+            # br.sendTransform(
+            #     (odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y, odom_msg.pose.pose.position.z),
+            #     orientation,
+            #     rospy.Time.now(),
+            #     "base_link",
+            #     "odom")
             br.sendTransform(
-                (odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y, odom_msg.pose.pose.position.z),
-                orientation,
+                (0, 0, 0),
+                tf.transformations.quaternion_from_euler(0, 0, 0),
                 rospy.Time.now(),
                 "base_link",
                 "odom")
