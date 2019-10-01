@@ -60,46 +60,7 @@ def new_cmd(data):
 
 
 def new_state(odom):
-    # get heading in radians (yaw)
-    # quaternion = (
-    #     odom.pose.pose.orientation.x,
-    #     odom.pose.pose.orientation.y,
-    #     odom.pose.pose.orientation.z,
-    #     odom.pose.pose.orientation.w)
-    # heading = tf.transformations.euler_from_quaternion(quaternion)[2]
-
-    # convert x/y velocity into speed with heading (direction) relative to car
     speed = math.sqrt(odom.twist.twist.linear.x ** 2 + odom.twist.twist.linear.y ** 2)
-    # v = np.array([math.cos(heading), math.sin(heading)])
-    # u = np.array([odom.twist.twist.linear.x, odom.twist.twist.linear.y])
-    # # compute the angle between the heading unit vector and velocity vector
-    # if (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))) == 0:
-    #     diff_direction = 0
-    # else:
-    #     diff_direction = np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
-    # direction = 0
-    # if odom.twist.twist.linear.x != 0:
-    #     direction = math.atan(odom.twist.twist.linear.y/odom.twist.twist.linear.x)
-    #     print("Hello")
-    #     if odom.twist.twist.linear.x < 0 and direction != 0:
-    #         print("Here")
-    #         direction = direction / abs(direction) * (abs(direction)+math.pi/2)
-    #     # a = heading - direction
-    #     # print("direction: " + str(direction))
-    # # else:
-    # #     a = 0
-    # # diff_direction = (a+math.pi) % (2*math.pi) - math.pi
-    # # print("angle between vectors: " + str(diff_direction))
-    # # if the velocity direction and the heading are in opposite directions then the DR is moving backward
-    # # get the difference between the heading and direction vectors
-    # if abs(direction) > math.pi / 2:
-    #     print(direction)
-    #     print(odom.twist.twist.linear.x)
-    #     current_velocity = -speed
-    # else:
-    #     current_velocity = speed
-    # print("")
-
     current_velocity = odom.twist.twist.linear.x/abs(odom.twist.twist.linear.x)*speed
     state_pub = rospy.Publisher('/drive_pid/state', Float64, queue_size=1)
     state_pub.publish(Float64(current_velocity))
