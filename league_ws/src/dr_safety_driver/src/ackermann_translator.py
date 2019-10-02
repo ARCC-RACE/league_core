@@ -60,10 +60,10 @@ def new_cmd(data):
 
 
 def new_state(odom):
-    speed = math.sqrt(odom.twist.twist.linear.x ** 2 + odom.twist.twist.linear.y ** 2)
-    current_velocity = odom.twist.twist.linear.x/abs(odom.twist.twist.linear.x)*speed
+    # speed = math.sqrt(odom.twist.twist.linear.x ** 2 + odom.twist.twist.linear.y ** 2)
+    # current_velocity = odom.twist.twist.linear.x/abs(odom.twist.twist.linear.x)*speed
     state_pub = rospy.Publisher('/drive_pid/state', Float64, queue_size=1)
-    state_pub.publish(Float64(current_velocity))
+    state_pub.publish(Float64(odom.twist.twist.linear.x))
 
 
 if __name__ == '__main__':
