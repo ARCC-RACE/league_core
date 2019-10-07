@@ -6,8 +6,11 @@ line_contour_cutoff: 1000
 camera_dist_from_ground: 2.0828
 camera_vertical_fov: 60
 camera_horizontal_fov: 80
+dr_height: 0.0254
 camera_topic: "/usb_cam/image_rect_color"
+odom_topic: "/odometry/filtered"
 blur_param: 9 # odd number, tune to reduce noise
 white_mask: "0, 0, 190, 180, 150, 255"
 refresh_rate: 0
+center_point: "400, 100" # center for revolving xor mask (x,y)
 #camera_topic: "/static_camera/image_raw"
