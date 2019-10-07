@@ -1,0 +1,5 @@
+<launch>
+    <node name="track_util" pkg="dr_tracker" type="track_util.py" output="screen">
+        <rosparam command="load" file="$(find dr_tracker)/config/track_util_config.yaml" />
+    </node>
+</launch>

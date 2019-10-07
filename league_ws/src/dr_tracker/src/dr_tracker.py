@@ -24,8 +24,16 @@ def midpoint(x1, y1, x2, y2):
 
 class TrackDR:
     def __init__(self, display_windows=True, temporal_filtering=2, dr_contour_area_cutoff=100, cam_dist_from_ground=1,
-                 camera_vertical_fov=80, camera_horizontal_fov=120, dr_height=0.17, arrow_lower=[170, 50, 90],
-                 arrow_upper=[200, 255, 255], arrow_lower_0=[0, 50, 90], arrow_upper_0=[5, 255, 255], blur_param=9):
+                 camera_vertical_fov=80, camera_horizontal_fov=120, dr_height=0.17, arrow_lower=None,
+                 arrow_upper=None, arrow_lower_0=None, arrow_upper_0=None, blur_param=9):
+        if arrow_lower is None:
+            arrow_lower = [170, 50, 90]
+        if arrow_upper is None:
+            arrow_upper = [200, 255, 255]
+        if arrow_lower_0 is None:
+            arrow_lower_0 = [0, 50, 90]
+        if arrow_upper_0 is None:
+            arrow_upper_0 = [5, 255, 255]
         self.acceleration = None
         self.image_pub = rospy.Publisher("dr_tracker/image_raw", Image, queue_size=1)
         self.pose_pub = rospy.Publisher("dr_tracker/pose", PoseStamped, queue_size=1)
