@@ -9,5 +9,5 @@ camera_horizontal_fov: 80
 dr_height: 0.0254
 camera_topic: "/usb_cam/image_rect_color"
 blur_param: 9 # odd number, tune to reduce noise
-red_mask: "170, 50, 90, 180, 255, 255, 0, 50, 90, 5, 255, 255"
+red_mask: "170, 50, 90, 180, 255, 255, 0, 50, 90, 8, 255, 255"
 #camera_topic: "/static_camera/image_raw"

@@ -12,5 +12,5 @@ odom_topic: "/odometry/filtered"
 blur_param: 9 # odd number, tune to reduce noise
 white_mask: "0, 0, 190, 180, 150, 255"
 refresh_rate: 0
-center_point: "400, 100" # center for revolving xor mask (x,y)
+center_point: "400, 400" # center for revolving xor mask (x,y)
 #camera_topic: "/static_camera/image_raw"
