@@ -6,8 +6,10 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 from nav_msgs.msg import Odometry
+from move_base_msgs.msg import MoveBaseActionGoal
 from std_msgs.msg import Bool
 import time
+import math
 
 
 def constrain(x, min, max):
@@ -43,11 +45,13 @@ class TrackUtil():
 
         self.track_status_pub = rospy.Publisher("is_off_track", Bool, queue_size=1)
 
+        self.waypoints = None  # this will be a numpy array in pixel x,y coordinates and r,p,y orientation based on heading
         self.last_image_time = 0
         self.cv_image_filtered = None
         self.cv_image_raw = None
         self.camera_resolution = None
         self.parsed_img = None
+        self.track_mask = None
         self.bridge = CvBridge()
 
     def process_image(self, image):  # callback for ROS subscriber with Image message
@@ -69,6 +73,7 @@ class TrackUtil():
         if self.debug and self.cv_image_raw is not None:
             cv2.imshow("Raw image window", self.cv_image_raw)
             cv2.imshow("Filtered image window", self.cv_image_filtered)
+            cv2.imshow("Track mask", self.track_mask)
             cv2.imshow("parsed image window",
                        cv2.bitwise_and(self.cv_image_raw, self.cv_image_raw, mask=self.parsed_img))
             # cv2.imshow("Filtered and parsed", np.hstack([self.cv_image_filtered, self.parsed_img]))
@@ -97,7 +102,11 @@ class TrackUtil():
                 # mask1 = outer, mask2 = inner track
                 cv2.drawContours(mask1, contours, cnts[0], 255, -1)  # Draw filled contour in mask
                 cv2.drawContours(mask2, contours, cnts[1], 255, -1)  # Draw filled contour in mask
-                track_mask = cv2.bitwise_or(cv2.dilate(mask1, np.ones((7, 7), np.uint8), iterations=1), cv2.dilate(mask2, np.ones((7, 7), np.uint8), iterations=1))
+                self.track_mask = cv2.bitwise_or(mask1, mask2)
+                if cv2.contourArea(contours[cnts[0]]) > cv2.contourArea(contours[cnts[1]]):  # mask 1 is the outer track
+                    self.generate_waypoints(mask2, mask1)
+                else:
+                    self.generate_waypoints(mask1, mask2)
                 for x in range(mask1.shape[0]):
                     for y in range(mask1.shape[1]):
                         if mask1[x, y] > 200:
@@ -109,9 +118,102 @@ class TrackUtil():
                 if self.debug:
                     cv2.circle(mask2, self.center_point, 5, 200, thickness=10)
                     cv2.circle(mask1, self.center_point, 5, 200, thickness=10)
-                self.parsed_img = cv2.bitwise_or(cv2.bitwise_xor(mask1, mask2), track_mask)
+                self.parsed_img = cv2.bitwise_or(cv2.bitwise_xor(mask1, mask2),
+                                                 cv2.dilate(self.track_mask, np.ones((7, 7), np.uint8)))
             else:
                 self.cv_image_raw = None  # reload an image due to inadequacy of original
+
+    def generate_waypoints(self, inner_track_mask, outer_track_mask, radius=20, direct=-1):
+
+        """The premise of this algorithm is to start by getting a point on the mask and the using a rotation based off
+         the line pointed toward the center where the initial inside track outer point was selected. After the first points
+          then selects the second point by rotating with radius r, then the perpendicular line to the line between the two points is  
+          use to form the r length rotating line that will select p3, p4, pn. The direction of rotation is defined as +1/-1 with the direct variable"""
+
+        # select the starting point on the outside of the inner part of the track
+        x = 0
+        p1 = None
+        while p1 is None:
+            x += 1
+            # opencv goes (y,x)
+            if inner_track_mask[self.center_point[1], self.center_point[0] - x] > 200:
+                p1 = np.array([self.center_point[0] - x, self.center_point[1]])
+
+        # now computer new_p and begin moving around the track until distance to last_p < radius
+        self.waypoints = []
+        last_p = p1
+        last_heading = 0
+        for i in range(5):
+
+            # compute the next point to use for generating a new waypoint
+            new_p = None
+            if direct < 0:
+                theta = last_heading - math.pi/2
+            else:
+                theta = last_heading + math.pi/2
+            while new_p is None:
+                theta += 0.01 * direct / abs(direct)
+                if inner_track_mask[
+                    int(radius * math.sin(theta) + last_p[1]), int(radius * math.cos(theta) + last_p[0])] > 200:
+                    new_p = np.array(
+                        [int(radius * math.cos(theta) + last_p[0]), int(radius * math.sin(theta) + last_p[1])])
+
+            # with new_p compute the line between them, get the midpoint and use the perpendicular line to the the distance to the outer track
+            # once the distance to the outer track is found then find that midpoint for the coordinate of the waypoint, computer heading with
+            # the line between last_p and new_p with the direction last_p->new_p, new radius will be the perpendicular line erected in the
+            # opposite direction of the first perpendicular line
+
+            # compute the line btw the two points
+            slope = (new_p[1] - last_p[1]).astype(float) / (
+                    last_p[0] - new_p[0])  # swap x to deal with inverse y coordinate system
+            perpendicular_slope = -1 / slope
+            midpoint = (last_p + new_p) / 2.0
+
+            outer_track_point = midpoint.astype(int)
+            x = 0
+            print(perpendicular_slope)
+            while outer_track_mask[outer_track_point[1], outer_track_point[0]] < 200:
+                # check both directions, this may cause issues if there are parts of the inner and outer track close together
+                # outer_track_point = np.array([int(midpoint[0] - int(x) * (-1) ** round(x)), int(perpendicular_slope * (midpoint[0] - int(x) * (-1) ** round(x)) + midpoint[1])])
+                outer_track_point = np.array([int(midpoint[0] - int(x)), int(
+                    perpendicular_slope * (midpoint[0] - int(x)) + midpoint[1])])
+
+                print(outer_track_point)
+                x += 0.5  # make sure that no index is skipped using int() round() and += 0.5
+            outer_inner_midpoint = (outer_track_point + midpoint) / 2.0
+
+            # now compute heading for the point
+            v = np.array((1, 0))
+            u = (last_p - new_p)
+            heading = math.pi - np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
+            if direct > 0 and last_p[0] < new_p[1]:
+                heading = 2 * math.pi - heading
+
+            # (x,y, heading)
+            self.waypoints.append([outer_inner_midpoint[0], outer_inner_midpoint[1], heading])
+
+            if self.debug:
+                print("last_p: " + str(last_p))
+                print("new_p: " + str(new_p))
+                print("midpoint: " + str(midpoint))
+                print("outer point: " + str(outer_track_point))
+                print("perpendicular slop: " + str(perpendicular_slope))
+                cv2.circle(self.track_mask, (last_p[0], last_p[1]), 5, 200, thickness=10)
+                cv2.circle(self.track_mask, (new_p[0], new_p[1]), 5, 100, thickness=10)
+                print("")
+
+            last_p = new_p
+            last_heading = heading
+
+        for i in range(len(self.waypoints)):
+            cv2.circle(self.track_mask, (int(self.waypoints[i][0]), int(self.waypoints[i][1])), 5, 255, thickness=10)
+        print(self.waypoints)
+
+    def send_waypoint(self, waypoint_index):
+        pass
+
+    def get_nearest_waypoint(self):
+        pass
 
     def is_off_track(self, odom):
         if self.parsed_img is not None:
@@ -123,7 +225,8 @@ class TrackUtil():
                 np.tan(np.radians(camera_fov / 2.0))))) * self.camera_resolution)
             if self.debug:
                 print("Position of car in pixels: " + str(centroid))
-            centroid_pixels = [constrain(centroid.astype(int)[0], 0, self.camera_resolution[0]), constrain(centroid.astype(int)[1], 0, self.camera_resolution[1])]
+            centroid_pixels = [constrain(centroid.astype(int)[0], 0, self.camera_resolution[0]),
+                               constrain(centroid.astype(int)[1], 0, self.camera_resolution[1])]
             if self.parsed_img[centroid_pixels[1], centroid_pixels[0]] > 100:
                 self.track_status_pub.publish(Bool(False))
             else:
