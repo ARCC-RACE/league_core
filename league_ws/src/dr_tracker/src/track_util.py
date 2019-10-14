@@ -7,8 +7,10 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 from nav_msgs.msg import Odometry
 from move_base_msgs.msg import MoveBaseActionGoal
+from geometry_msgs.msg import PoseArray, Pose
 from std_msgs.msg import Bool
 import time
+import tf
 import math
 
 
@@ -42,8 +44,11 @@ class TrackUtil():
         self.refresh_rate = refresh_rate
         self.center_point = center_point
         self.dr_height = dr_height
+        self.camera_fov = np.array([camera_horizontal_fov, camera_vertical_fov])
 
         self.track_status_pub = rospy.Publisher("is_off_track", Bool, queue_size=1)
+        self.waypoints_pub = rospy.Publisher("waypoints", PoseArray, queue_size=1)
+        self.nearest_waypoint_pub = rospy.Publisher("nearest_waypoint", Pose, queue_size=1)
 
         self.waypoints = None  # this will be a numpy array in pixel x,y coordinates and r,p,y orientation based on heading
         self.last_image_time = 0
@@ -107,6 +112,7 @@ class TrackUtil():
                     self.generate_waypoints(mask2, mask1)
                 else:
                     self.generate_waypoints(mask1, mask2)
+                self.send_waypoints()
                 for x in range(mask1.shape[0]):
                     for y in range(mask1.shape[1]):
                         if mask1[x, y] > 200:
@@ -143,7 +149,7 @@ class TrackUtil():
         self.waypoints = []
         last_p = p1
         last_heading = 0
-        for i in range(5):
+        for i in range(20):
 
             # compute the next point to use for generating a new waypoint
             new_p = None
@@ -151,12 +157,12 @@ class TrackUtil():
                 theta = last_heading - math.pi/2
             else:
                 theta = last_heading + math.pi/2
+            print(theta)
+            print(last_heading)
             while new_p is None:
                 theta += 0.01 * direct / abs(direct)
-                if inner_track_mask[
-                    int(radius * math.sin(theta) + last_p[1]), int(radius * math.cos(theta) + last_p[0])] > 200:
-                    new_p = np.array(
-                        [int(radius * math.cos(theta) + last_p[0]), int(radius * math.sin(theta) + last_p[1])])
+                if inner_track_mask[int(radius * math.sin(theta) + last_p[1]), int(radius * math.cos(theta) + last_p[0])] > 200:
+                    new_p = np.array([int(radius * math.cos(theta) + last_p[0]), int(radius * math.sin(theta) + last_p[1])])
 
             # with new_p compute the line between them, get the midpoint and use the perpendicular line to the the distance to the outer track
             # once the distance to the outer track is found then find that midpoint for the coordinate of the waypoint, computer heading with
@@ -164,32 +170,35 @@ class TrackUtil():
             # opposite direction of the first perpendicular line
 
             # compute the line btw the two points
-            slope = (new_p[1] - last_p[1]).astype(float) / (
+            slope = -(new_p[1] - last_p[1]).astype(float) / (
                     last_p[0] - new_p[0])  # swap x to deal with inverse y coordinate system
             perpendicular_slope = -1 / slope
-            midpoint = (last_p + new_p) / 2.0
+            midpoint = ((last_p + new_p) / 2.0).astype(int)
 
             outer_track_point = midpoint.astype(int)
             x = 0
-            print(perpendicular_slope)
             while outer_track_mask[outer_track_point[1], outer_track_point[0]] < 200:
                 # check both directions, this may cause issues if there are parts of the inner and outer track close together
-                # outer_track_point = np.array([int(midpoint[0] - int(x) * (-1) ** round(x)), int(perpendicular_slope * (midpoint[0] - int(x) * (-1) ** round(x)) + midpoint[1])])
-                outer_track_point = np.array([int(midpoint[0] - int(x)), int(
-                    perpendicular_slope * (midpoint[0] - int(x)) + midpoint[1])])
-
-                print(outer_track_point)
-                x += 0.5  # make sure that no index is skipped using int() round() and += 0.5
+                if perpendicular_slope == float("-inf") or perpendicular_slope == float("inf"):
+                    outer_track_point = np.array([int(midpoint[0]), int(x * (-1) ** round(x) + midpoint[1])])
+                    # outer_track_point = np.array([(int(x) * (-1) ** round(x)), int(perpendicular_slope * (midpoint[0] - int(x)) * (-1) ** round(x) + midpoint[1])])
+                else:
+                    # outer_track_point = np.array([int(x), int(perpendicular_slope * (midpoint[0] - x) + midpoint[1])])
+                    outer_track_point = np.array([int(midpoint[0] + x * (-1) ** round(x)), int(perpendicular_slope * (x * (-1) ** round(x)) + midpoint[1])])
+                # cv2.line(self.track_mask, (int(midpoint[0]), int(midpoint[1])),
+                #          (int(outer_track_point[0]), int(outer_track_point[1])), 150, 5)
+                x -= 0.01  # make sure that no index is skipped using int() round() and += 0.5
             outer_inner_midpoint = (outer_track_point + midpoint) / 2.0
+            if self.debug:
+                cv2.line(self.track_mask, (int(midpoint[0]), int(midpoint[1])),
+                         (int(outer_track_point[0]), int(outer_track_point[1])), 150, 5)
 
             # now compute heading for the point
             v = np.array((1, 0))
-            u = (last_p - new_p)
-            heading = math.pi - np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
-            if direct > 0 and last_p[0] < new_p[1]:
-                heading = 2 * math.pi - heading
-
-            # (x,y, heading)
+            u = (new_p - last_p)
+            heading = np.arccos(u.dot(v) / (np.sqrt(u.dot(u)) * np.sqrt(v.dot(v))))
+            if last_p[1] < new_p[1]:
+                heading = -heading
             self.waypoints.append([outer_inner_midpoint[0], outer_inner_midpoint[1], heading])
 
             if self.debug:
@@ -197,7 +206,7 @@ class TrackUtil():
                 print("new_p: " + str(new_p))
                 print("midpoint: " + str(midpoint))
                 print("outer point: " + str(outer_track_point))
-                print("perpendicular slop: " + str(perpendicular_slope))
+                print("perpendicular slope: " + str(perpendicular_slope))
                 cv2.circle(self.track_mask, (last_p[0], last_p[1]), 5, 200, thickness=10)
                 cv2.circle(self.track_mask, (new_p[0], new_p[1]), 5, 100, thickness=10)
                 print("")
@@ -209,8 +218,26 @@ class TrackUtil():
             cv2.circle(self.track_mask, (int(self.waypoints[i][0]), int(self.waypoints[i][1])), 5, 255, thickness=10)
         print(self.waypoints)
 
-    def send_waypoint(self, waypoint_index):
-        pass
+    def send_waypoints(self):
+        waypoints = PoseArray()
+        waypoints.header.stamp = rospy.Time()
+        waypoints.header.frame_id = "map"
+        for i in range(len(self.waypoints)):
+            pose = Pose()
+            waypoint = np.array(self.waypoints[i])
+            heading = waypoint[2]
+            # convert waypoint position into meters
+            waypoint = (waypoint[0:2] / (self.camera_resolution * 1.0)) * (2.0 * (self.cam_dist_from_ground - self.dr_height) * (np.tan(np.radians(self.camera_fov / 2.0))))
+            pose.position.x = waypoint[0]
+            pose.position.y = -waypoint[1]
+            orientation = tf.transformations.quaternion_from_euler(0, 0, heading)
+
+            pose.orientation.x = orientation[0]
+            pose.orientation.y = orientation[1]
+            pose.orientation.z = orientation[2]
+            pose.orientation.w = orientation[3]
+            waypoints.poses.append(pose)
+        self.waypoints_pub.publish(waypoints)
 
     def get_nearest_waypoint(self):
         pass
