@@ -7,7 +7,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 from nav_msgs.msg import Odometry
 from move_base_msgs.msg import MoveBaseActionGoal
-from geometry_msgs.msg import PoseArray, Pose
+from geometry_msgs.msg import PoseArray, Pose, PoseStamped
 from std_msgs.msg import Bool
 import time
 import tf
@@ -47,8 +47,8 @@ class TrackUtil():
         self.camera_fov = np.array([camera_horizontal_fov, camera_vertical_fov])
 
         self.track_status_pub = rospy.Publisher("is_off_track", Bool, queue_size=1)
-        self.waypoints_pub = rospy.Publisher("waypoints", PoseArray, queue_size=1)
-        self.nearest_waypoint_pub = rospy.Publisher("nearest_waypoint", Pose, queue_size=1)
+        self.waypoints_pub = rospy.Publisher("waypoints", PoseArray, queue_size=1, latch=True)
+        self.nearest_waypoint_pub = rospy.Publisher("nearest_waypoint", PoseStamped, queue_size=1)
 
         self.waypoints = None  # this will be a numpy array in pixel x,y coordinates and r,p,y orientation based on heading
         self.last_image_time = 0
@@ -153,16 +153,16 @@ class TrackUtil():
 
             # compute the next point to use for generating a new waypoint
             new_p = None
-            if direct < 0:
-                theta = last_heading - math.pi/2
+            if direct > 0:
+                theta = last_heading - math.pi / 2
             else:
-                theta = last_heading + math.pi/2
-            print(theta)
-            print(last_heading)
+                theta = last_heading + math.pi / 2
             while new_p is None:
                 theta += 0.01 * direct / abs(direct)
-                if inner_track_mask[int(radius * math.sin(theta) + last_p[1]), int(radius * math.cos(theta) + last_p[0])] > 200:
-                    new_p = np.array([int(radius * math.cos(theta) + last_p[0]), int(radius * math.sin(theta) + last_p[1])])
+                if inner_track_mask[
+                    int(-radius * math.sin(theta) + last_p[1]), int(radius * math.cos(theta) + last_p[0])] > 200:
+                    new_p = np.array(
+                        [int(radius * math.cos(theta) + last_p[0]), int(-radius * math.sin(theta) + last_p[1])])
 
             # with new_p compute the line between them, get the midpoint and use the perpendicular line to the the distance to the outer track
             # once the distance to the outer track is found then find that midpoint for the coordinate of the waypoint, computer heading with
@@ -184,7 +184,8 @@ class TrackUtil():
                     # outer_track_point = np.array([(int(x) * (-1) ** round(x)), int(perpendicular_slope * (midpoint[0] - int(x)) * (-1) ** round(x) + midpoint[1])])
                 else:
                     # outer_track_point = np.array([int(x), int(perpendicular_slope * (midpoint[0] - x) + midpoint[1])])
-                    outer_track_point = np.array([int(midpoint[0] + x * (-1) ** round(x)), int(perpendicular_slope * (x * (-1) ** round(x)) + midpoint[1])])
+                    outer_track_point = np.array([int(midpoint[0] + x * (-1) ** round(x / 0.01)), int(
+                        perpendicular_slope * (x * (-1) ** round(x / 0.01)) + midpoint[1])])
                 # cv2.line(self.track_mask, (int(midpoint[0]), int(midpoint[1])),
                 #          (int(outer_track_point[0]), int(outer_track_point[1])), 150, 5)
                 x -= 0.01  # make sure that no index is skipped using int() round() and += 0.5
@@ -220,14 +221,16 @@ class TrackUtil():
 
     def send_waypoints(self):
         waypoints = PoseArray()
-        waypoints.header.stamp = rospy.Time()
+        waypoints.header.stamp = rospy.Time.now()
         waypoints.header.frame_id = "map"
         for i in range(len(self.waypoints)):
             pose = Pose()
             waypoint = np.array(self.waypoints[i])
             heading = waypoint[2]
             # convert waypoint position into meters
-            waypoint = (waypoint[0:2] / (self.camera_resolution * 1.0)) * (2.0 * (self.cam_dist_from_ground - self.dr_height) * (np.tan(np.radians(self.camera_fov / 2.0))))
+            waypoint = (waypoint[0:2] / (self.camera_resolution * 1.0)) * (
+                        2.0 * (self.cam_dist_from_ground - self.dr_height) * (
+                    np.tan(np.radians(self.camera_fov / 2.0))))
             pose.position.x = waypoint[0]
             pose.position.y = -waypoint[1]
             orientation = tf.transformations.quaternion_from_euler(0, 0, heading)
@@ -239,8 +242,31 @@ class TrackUtil():
             waypoints.poses.append(pose)
         self.waypoints_pub.publish(waypoints)
 
-    def get_nearest_waypoint(self):
-        pass
+    def get_nearest_waypoint(self, location_in_pixels):
+        min_dist = 9999
+        min_dist_waypoint_index = 0
+        for i, waypoint in enumerate(self.waypoints):
+            dist = math.sqrt((location_in_pixels[0] - waypoint[0]) ** 2 + (location_in_pixels[1] - waypoint[1]) ** 2)
+            if dist < min_dist:
+                min_dist = dist
+                min_dist_waypoint_index = i
+
+        waypoint = np.array(self.waypoints[min_dist_waypoint_index])
+        heading = waypoint[2]
+        waypoint = (waypoint[0:2] / (self.camera_resolution * 1.0)) * (
+                2.0 * (self.cam_dist_from_ground - self.dr_height) * (
+            np.tan(np.radians(self.camera_fov / 2.0))))
+        pose = PoseStamped()
+        pose.header.stamp = rospy.Time.now()
+        pose.header.frame_id = "map"
+        pose.pose.position.x = waypoint[0]
+        pose.pose.position.y = -waypoint[1]
+        orientation = tf.transformations.quaternion_from_euler(0, 0, heading)
+        pose.pose.orientation.x = orientation[0]
+        pose.pose.orientation.y = orientation[1]
+        pose.pose.orientation.z = orientation[2]
+        pose.pose.orientation.w = orientation[3]
+        self.nearest_waypoint_pub.publish(pose)
 
     def is_off_track(self, odom):
         if self.parsed_img is not None:
@@ -254,6 +280,7 @@ class TrackUtil():
                 print("Position of car in pixels: " + str(centroid))
             centroid_pixels = [constrain(centroid.astype(int)[0], 0, self.camera_resolution[0]),
                                constrain(centroid.astype(int)[1], 0, self.camera_resolution[1])]
+            self.get_nearest_waypoint(centroid_pixels)
             if self.parsed_img[centroid_pixels[1], centroid_pixels[0]] > 100:
                 self.track_status_pub.publish(Bool(False))
             else:
