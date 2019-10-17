@@ -38,11 +38,11 @@ def new_speed(effort):
 
 
 def new_cmd(data):
-    # update PID with current velocity with reference to car frame
-    state_pub = rospy.Publisher('/drive_pid/setpoint', Float64, queue_size=1)
-    state_pub.publish(Float64(data.linear.x))
-
-    # send Ackermann message with steering angle
+    # # update PID with current velocity with reference to car frame
+    # state_pub = rospy.Publisher('/drive_pid/setpoint', Float64, queue_size=1)
+    # state_pub.publish(Float64(data.linear.x))
+    #
+    # # send Ackermann message with steering angle
     ackermann_pub = rospy.Publisher('ackermann_cmd', AckermannDriveStamped, queue_size=1)
     ackermann_msg = AckermannDriveStamped()
 
@@ -53,7 +53,8 @@ def new_cmd(data):
 
     # positive is left and negative is right
     global wheelbase, velocity, steering
-    ackermann_msg.drive.speed = velocity  # last velocity
+    # ackermann_msg.drive.speed = velocity  # last velocity
+    ackermann_msg.drive.speed = data.linear.x  # last velocity
     steering = convert_trans_rot_vel_to_steering_angle(ackermann_msg.drive.speed, data.angular.z, wheelbase)
     ackermann_msg.drive.steering_angle = steering
     ackermann_pub.publish(ackermann_msg)
