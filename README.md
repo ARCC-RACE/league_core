@@ -12,8 +12,11 @@ Core files for running automated ARCC League
 ## league_ws ROS setup
 1. Install ROS melodic
 2. init and update git submodules
-3. `rosdep install --from-paths src --ignore-src -r -y`
-4. Calibrate Camera with tutorial [here]("http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration")
+3. `sudo apt install libunwind8-dev`
+4. `rosdep install --from-paths src --ignore-src -r -y`
+5. `catkin_make -DCATKIN_BLACKLIST_PACKAGES="pointgrey_camera_driver"`
+   - You may need to download the SDK for the FLIR style cameras manually [follow this](https://answers.ros.org/question/233456/pointgrey_camera_driver-fails-to-compile/)
+5. Calibrate Camera with tutorial [here]("http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration")
 
 ## Getting Started
 Once you have followed the setup instructions you can begin running ACC League software!
