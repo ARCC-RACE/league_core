@@ -1,0 +1,8 @@
+<launch>
+    <include file="$(find dr_track)/launch/usb-cam.launch">
+        <arg name="calib_file" value="ost-9-20-19"/>
+    </include>
+    <include file="$(find dr_tracker)/launch/dr_tracker.launch"/>
+    <include file="$(find dr_tracker)/launch/track_util.launch"/>
+    <include file="$"
+</launch>

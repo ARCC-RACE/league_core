@@ -49,20 +49,20 @@
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>move-base</build_depend>
+  <build_depend>move_base</build_depend>
   <build_depend>tf</build_depend>
-  <build_depend>robot-localization</build_depend>
-  <build_depend>map-server</build_depend>
+  <build_depend>robot_localization</build_depend>
+  <build_depend>map_server</build_depend>
   <build_depend>rospy</build_depend>
-  <build_depend>teb-local-planner</build_depend>
-  <build_export_depend>move-base</build_export_depend>
+  <build_depend>teb_local_planner</build_depend>
+  <build_export_depend>move_base</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
-  <build_export_depend>teb-local-planner</build_export_depend>
-  <exec_depend>move-base</exec_depend>
+  <build_export_depend>teb_local_planner</build_export_depend>
+  <exec_depend>move_base</exec_depend>
   <exec_depend>pid</exec_depend>
-  <exec_depend>ackermann-msgs</exec_depend>
+  <exec_depend>ackermann_msgs</exec_depend>
   <exec_depend>rospy</exec_depend>
-  <exec_depend>teb-local-planner</exec_depend>
+  <exec_depend>teb_local_planner</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

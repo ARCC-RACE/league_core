@@ -27,7 +27,7 @@ def constrain(x, min, max):
 
 class Driver:
 
-    def __init__(self, dr_ip="192.168.1.101", dr_password="uGRqirr3", off_track_topic="/is_off_track",
+    def __init__(self, dr_ip="192.168.1.100", dr_password="JJo1qfmc", off_track_topic="/is_off_track",
                  nearest_waypoint_topic="/nearest_waypoint"):
 
         # start car
@@ -44,6 +44,7 @@ class Driver:
         rospy.Subscriber(off_track_topic, Bool, self.dr_track_status)
         rospy.Subscriber(nearest_waypoint_topic, PoseStamped, self.update_nearest_waypoint)
         rospy.Subscriber("/ackermann_cmd", AckermannDriveStamped, self.update_car)
+        self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
 
     def __del__(self):
         self.car.stop_car()
@@ -51,25 +52,22 @@ class Driver:
     def dr_track_status(self, data):
         self.is_off_track = data.data
         if self.is_off_track == True and self.repositioning == False and self.nearest_waypoint is not None:
-            self.set_nav_goal(self.nearest_waypoint)
             self.repositioning = True
+            self.set_nav_goal(self.nearest_waypoint)
 
     def update_nearest_waypoint(self, data):
         self.nearest_waypoint = data
 
     def set_nav_goal(self, setpoint):
-        client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
-        client.wait_for_server()
+
+        self.move_base_client.wait_for_server()
         goal = MoveBaseGoal()
         goal.target_pose = setpoint
         goal.target_pose.header.stamp = rospy.Time.now()
-        client.send_goal(goal)
-        wait = client.wait_for_server()
-        if not wait:
-            rospy.logerr("Action server not available")
-        else:
-            print("Hello!")
-            print(client.get_result())
+        self.move_base_client.send_goal(goal)
+        self.move_base_client.wait_for_result()
+        print(self.move_base_client.get_result())
+        self.repositioning = False
 
     def goal_status(self, data):
         # PENDING = 0  # The goal has yet to be processed by the action server
@@ -99,7 +97,6 @@ class Driver:
             self.car.stop_car()
 
     def update_car(self, data):
-        global drive, steer
         # compute steering ang -30deg to 30deg
         if not self.repositioning:
             self.car.send_drive_command(0, 0)
@@ -108,9 +105,7 @@ class Driver:
             steer = range_map(steer, -math.pi / 6, math.pi / 6, -1.0, 1.0)
             drive = data.drive.speed
             # handle deadzones
-            drive_deadzone = [0.6, -0.65]
-            # if -0.0 < drive < 0.0:
-            #     drive = 0
+            drive_deadzone = [0.4, -0.9]
             if drive > 0:
                 # drive = drive_deadzone[0] + drive ** 5  # exponential control
                 drive = drive_deadzone[0]

@@ -97,8 +97,8 @@ class TrackDR:
         cv2.waitKey(3)
 
     def filter_image(self):
-        # median = cv2.medianBlur(image, 9)
-        # blur = cv2.bilateralFilter(image, 9, 75, 75)
+        # blur = cv2.medianBlur(self.cv_image_raw, self.blur_param)
+        # blur = cv2.bilateralFilter(self.cv_image_raw, self.blur_param, 75, 75)
         blur = cv2.GaussianBlur(self.cv_image_raw, (self.blur_param, self.blur_param), 0)
         # if self.display_windows:
         #     cv2.imshow("Filter image window", blur)

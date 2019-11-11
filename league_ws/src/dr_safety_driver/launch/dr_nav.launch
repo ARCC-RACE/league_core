@@ -1,6 +1,6 @@
 <launch>
  <!-- Run the map server -->
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find dr_safety_driver)/maps/map.yaml"/>
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find dr_safety_driver)/maps/genius-10-27-19.yaml"/>
 
    <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
      <rosparam file="$(find dr_safety_driver)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
@@ -19,10 +19,10 @@
     <include file="$(find dr_safety_driver)/launch/localization.launch"/>
 
     <node name="drive_pid" pkg="pid" type="controller" ns="drive_pid">
-      <param name="Kp" value="0.8" />
-      <param name="Ki" value="0.5" />
+      <param name="Kp" value="2" />
+      <param name="Ki" value="0.3" />
       <param name="Kd" value="0.0" />
-      <param name="rate" value="20" />
+      <param name="rate" value="30" />
       <param name="upper_limit" value="1.0" />
       <param name="lower_limit" value="-1.0" />
       <param name="windup_limit" value="0.8" />
