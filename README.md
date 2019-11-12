@@ -14,8 +14,10 @@ Core files for running automated ARCC League
 2. init and update git submodules
 3. `sudo apt install libunwind8-dev`
 4. `rosdep install --from-paths src --ignore-src -r -y`
-5. `catkin_make -DCATKIN_BLACKLIST_PACKAGES="pointgrey_camera_driver"`
+5. `catkin_make`
    - You may need to download the SDK for the FLIR style cameras manually [follow this](https://answers.ros.org/question/233456/pointgrey_camera_driver-fails-to-compile/)
+5. Setup FLIR Camera udev rules by downloading the spinnaker viewer/driver from the link in the setting up the vision system section (software install link) and run the setup making sure to correctly enter the username when prompted (if your camera cannot be detect the reason is likely that the udev rules are not properly setup)
+6. In `/etc/default/grub` add the line `GRUB_CMDLINE_LINUX_DEFAULT="quiet splash usbcore.usbfs_memory_mb=1000"` then run `sudo update-grub`
 5. Calibrate Camera with tutorial [here]("http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration")
 
 ## Getting Started
@@ -23,6 +25,11 @@ Once you have followed the setup instructions you can begin running ACC League s
 
 ## Setting up the vision system
 ARCC league uses quality machine vision system to provide reliable DR tracking. The follow links are to the setup instructions for the [Flir BFS-U3-16S2C-CS](https://www.flir.com/products/blackfly-s-usb3?model=BFS-U3-16S2C-CS) Camera.
+
 [Lens YV2.7X2.2SA-2](https://www.bhphotovideo.com/c/product/736834-REG/Fujinon_YV2_7X2_2SA_2_3_MP_Varifocal_Lens.html)
+
 [Setup Instructions](https://flir.app.boxcn.net/s/4nmu4yffg9h7qov46w5ijcude99nks0u/file/418603801042)
+
 [Software Install (Spinnaker)](https://flir.app.boxcn.net/v/SpinnakerSDK/folder/68522911814)
+
+[Understanding Linux and USBFS](https://www.flir.com/support-center/iis/machine-vision/application-note/understanding-usbfs-on-linux/)
