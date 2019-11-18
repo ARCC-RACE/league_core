@@ -35,18 +35,18 @@ ARCC league uses quality machine vision system to provide reliable DR tracking. 
 [Understanding Linux and USBFS](https://www.flir.com/supeport-center/iis/machine-vision/application-note/understanding-usbfs-on-linux/)
 
 The specs for the camera when focus = infinity and the zoom in minimized is the following
-HFOV:
-VFOV:
+HFOV: 120
+VFOV: 90
 Frame size: 1440(h)x1080(w)
 FPS: ~30
 Topic: /camera_array/cam0/image_raw
 
 For camera calibration the following command can be used: `rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.038 image:=/camera_array/cam0/image_raw --no-service-check`
 
-(D = , [-0.23896587967448205, 0.042585724870922305, 0.00042125157060019614, -0.0009196931859749118, 0.0])
-(K = , [649.4255405591126, 0.0, 721.2180709366453, 0.0, 646.8925978362109, 538.043575555133, 0.0, 0.0, 1.0])
-(R = , [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])
-(P = , [454.8259582519531, 0.0, 718.0032445678844, 0.0, 0.0, 508.1412353515625, 538.2221307493164, 0.0, 0.0, 0.0, 1.0, 0.0])
+('D = ', [-0.21338195826140682, 0.03258095763463949, -0.00018955724409316463, -0.00040928582228521367, 0.0])
+('K = ', [648.0113147742057, 0.0, 703.9625700394782, 0.0, 648.1713061967582, 533.5561962879885, 0.0, 0.0, 1.0])
+('R = ', [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])
+('P = ', [445.3047180175781, 0.0, 707.8064656754395, 0.0, 0.0, 526.1232299804688, 529.175376518222, 0.0, 0.0, 0.0, 1.0, 0.0])
 
 
 ## Launch instructions

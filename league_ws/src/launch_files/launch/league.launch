@@ -1,6 +1,6 @@
 <launch>
-    <arg name="launch_track_utils" value="true"/>
-    <arg name="launch_real_dr_driver" value="true"/>
+    <arg name="launch_track_utils" value="false"/>
+    <arg name="launch_real_dr_driver" value="false"/>
 
     <include file="$(find dr_tracker)/launch/flir_camera.launch">
         <arg name="calib_file" value="flir_calibration"/>
