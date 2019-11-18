@@ -1,8 +1,23 @@
 <launch>
-    <include file="$(find dr_track)/launch/usb-cam.launch">
-        <arg name="calib_file" value="ost-9-20-19"/>
+    <arg name="launch_track_utils" value="true"/>
+    <arg name="launch_real_dr_driver" value="true"/>
+
+    <include file="$(find dr_tracker)/launch/flir_camera.launch">
+        <arg name="calib_file" value="flir_calibration"/>
     </include>
+
     <include file="$(find dr_tracker)/launch/dr_tracker.launch"/>
-    <include file="$(find dr_tracker)/launch/track_util.launch"/>
-    <include file="$"
+
+    <group if="$(arg launch_track_utils)">
+        <include file="$(find dr_tracker)/launch/track_util.launch"/>
+    </group>
+
+    <include file="$(find dr_safety_driver)/launch/dr_nav.launch"/>
+
+    <group if="$(arg launch_real_dr_driver)">
+        <node pkg="dr_safety_driver" type="dr_real_driver.py" name="dr_driver">
+            <param name="dr_ip" value="192.168.1.100"/>
+            <param name="dr_password" value="JJo1qfmc"/>
+        </node>
+    </group>
 </launch>

@@ -9,12 +9,12 @@
      <rosparam file="$(find dr_safety_driver)/config/global_costmap_params.yaml" command="load" />
      <rosparam file="$(find dr_safety_driver)/config/base_local_planner_params.yaml" command="load"/>
      <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
-     <param name="controller_frequency" value="10.0" />
+     <param name="controller_frequency" value="20.0" />
    </node>
 
     <node type="ackermann_translator.py" name="ackermann_translator" pkg="dr_safety_driver" output="screen"/>
 
-    <node type="dr_sim_driver.py" name="dr_sim_driver" pkg="dr_safety_driver" />
+<!--    <node type="dr_sim_driver.py" name="dr_sim_driver" pkg="dr_safety_driver" />-->
 
     <include file="$(find dr_safety_driver)/launch/localization.launch"/>
 
@@ -22,7 +22,7 @@
       <param name="Kp" value="2" />
       <param name="Ki" value="0.3" />
       <param name="Kd" value="0.0" />
-      <param name="rate" value="30" />
+      <param name="rate" value="50" />
       <param name="upper_limit" value="1.0" />
       <param name="lower_limit" value="-1.0" />
       <param name="windup_limit" value="0.8" />

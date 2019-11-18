@@ -1,6 +1,13 @@
 <launch>
+  <arg name="path" value="$(find dr_tracker)"/>
+  <arg name="calib_file" default="flir_calibration"/>
   <include file="$(find spinnaker_sdk_camera_driver)/launch/acquisition.launch">
     <arg name="color" value="true"/>
-    <arg name="config_file" value="$(find dr_tracker)/camera_calibration/flir_calibration.yaml"/>
+    <arg name="soft_framerate"    default="30"	doc="When hybrid software triggering is used, this controls the FPS, 0=as fast as possible"/>
+    <arg name="config_file" value="$(arg path)/camera_calibration/$(arg calib_file).yaml"/>
   </include>
+  <node pkg="image_proc" type="image_proc" name="image_proc" ns="usb_cam" output="screen">
+    <remap from="image_raw" to="/camera_array/cam0/image_raw"/>
+    <remap from="camera_info" to="/camera_array/cam0/camera_info"/>
+  </node>
 </launch>

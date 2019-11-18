@@ -1,6 +1,6 @@
 #Config file for loading the default values for tracking the DeepRacer
 
-debug: True
+debug: False
 temporal_filtering: 0
 dr_contour_area_cutoff: 120
 camera_dist_from_ground: 2.86

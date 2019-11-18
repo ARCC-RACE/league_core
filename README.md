@@ -2,9 +2,9 @@
 Core files for running automated ARCC League
 
 ## Dependencies
-1. This repo has been developed on and tested for Ubuntu 18.04 with python 3.7
+1. This repo has been developed on and tested for Ubuntu 18.04 with ROS melodic
 
-## dr_interface Setup 
+## dr_interface Setup (not needed unless used seperately from the rest of the system)
 1. Start by installing and setting up conda
 2. Create a conda env with the command `conda env create -f environmrent.yaml`. That should load all of the proper dependencies for running league core.
 3. Activate conda env with with `conda activate league_env` 
@@ -32,4 +32,50 @@ ARCC league uses quality machine vision system to provide reliable DR tracking. 
 
 [Software Install (Spinnaker)](https://flir.app.boxcn.net/v/SpinnakerSDK/folder/68522911814)
 
-[Understanding Linux and USBFS](https://www.flir.com/support-center/iis/machine-vision/application-note/understanding-usbfs-on-linux/)
+[Understanding Linux and USBFS](https://www.flir.com/supeport-center/iis/machine-vision/application-note/understanding-usbfs-on-linux/)
+
+The specs for the camera when focus = infinity and the zoom in minimized is the following
+HFOV:
+VFOV:
+Frame size: 1440(h)x1080(w)
+FPS: ~30
+Topic: /camera_array/cam0/image_raw
+
+For camera calibration the following command can be used: `rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.038 image:=/camera_array/cam0/image_raw --no-service-check`
+
+(D = , [-0.23896587967448205, 0.042585724870922305, 0.00042125157060019614, -0.0009196931859749118, 0.0])
+(K = , [649.4255405591126, 0.0, 721.2180709366453, 0.0, 646.8925978362109, 538.043575555133, 0.0, 0.0, 1.0])
+(R = , [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])
+(P = , [454.8259582519531, 0.0, 718.0032445678844, 0.0, 0.0, 508.1412353515625, 538.2221307493164, 0.0, 0.0, 0.0, 1.0, 0.0])
+
+
+## Launch instructions
+Nodes and functions can be launch individually or together. Launch files package contains the large single files that will launch every component of the system. Parameters to the launch file include which tracking system to use and the config files to be loaded for each process. The rqt_graph for the single car system is shown below.
+
+Check all configuration files are up correct
+1. dr_tracker_config.yaml
+2. track_util_config.yaml
+3. ekf_config.yaml
+4. [base_local_planner_params.yaml](http://wiki.ros.org/teb_local_planner#Parameters)
+5. costmap_common_params.yaml
+
+Make sure you have the following:
+1. Calibrated wide FOV machine vision camera
+2. Map corresponding to camera placement and track layout
+3. Updated parameters for ekf based on camera, lighting, and map
+
+## Generating Map and updating state covariances for EKF
+
+## Updating tracker and track_utils config files
+
+## Tracking System Configuration
+Two types of tracking systems exist. One is a traditional motion system that ses computer vision techniques to detect and track a triangle. The other technique uses object detect neural networks and computer vision to detect, orient, and track the obect.
+
+Setting up triangle tracking
+1. Design an isosceles triangle with a 9/4 height to base ratio. The color should be one that is not encountered in large amounts on the track such as red or blue. The mask can then be tune in the dr_tracker/config/dr_tracker_config.yaml along with various other data points needed for accurate calibration of the tracking system.
+2. Existing triangle files can be found [here](https://drive.google.com/drive/u/0/folders/1nh8eqmYK21Rf7553yW1CQx-jX22Z4VH3)
+3. Best performance has been found with 9/4 ratio dark red/blue triangles printed on thick matte paper.
+4. Example dimensions for a triangle that fits the DeepRacer frame would be h:275mm and b: 122mm with RGB values (158, 11, 15)
+
+Setting up Deep Neural tracking
+1. print out on thick matte paper colored buttons (circles) with clear delinitations between in and the rest of the cars shell and other colored dots. For example colors could be purple, blue, green, red, yellow. For the AWS Deepracer the dots should have a diameter of 50mm.

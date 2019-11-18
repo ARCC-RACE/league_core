@@ -65,36 +65,39 @@ class Driver:
         goal.target_pose = setpoint
         goal.target_pose.header.stamp = rospy.Time.now()
         self.move_base_client.send_goal(goal)
-        self.move_base_client.wait_for_result()
+        wait = self.move_base_client.wait_for_result()
+        # If the result doesn't arrive, assume the Server is not available
+        if not wait:
+            rospy.logerr("Action server not available!")
         print(self.move_base_client.get_result())
         self.repositioning = False
 
-    def goal_status(self, data):
-        # PENDING = 0  # The goal has yet to be processed by the action server
-        # ACTIVE = 1  # The goal is currently being processed by the action server
-        # PREEMPTED = 2  # The goal received a cancel request after it started executing
-        # #   and has since completed its execution (Terminal State)
-        # SUCCEEDED = 3  # The goal was achieved successfully by the action server (Terminal State)
-        # ABORTED = 4  # The goal was aborted during execution by the action server due
-        # #    to some failure (Terminal State)
-        # REJECTED = 5  # The goal was rejected by the action server without being processed,
-        # #    because the goal was unattainable or invalid (Terminal State)
-        # PREEMPTING = 6  # The goal received a cancel request after it started executing
-        # #    and has not yet completed execution
-        # RECALLING = 7  # The goal received a cancel request before it started executing,
-        # #    but the action server has not yet confirmed that the goal is canceled
-        # RECALLED = 8  # The goal received a cancel request before it started executing
-        # #    and was successfully cancelled (Terminal State)
-        # LOST = 9  # An action client can determine that a goal is LOST. This should not be
-        # #    sent over the wire by an action server
-        print(data.status.status)
-        if data.status.status == 3 or data.status.status == 5 or data.status.status == 4:
-            self.repositioning = False
-            if data.status.status == 3:
-                print("########## Goal achieved!")
-        if data.status.status == 9:
-            print("######### Car lost!")
-            self.car.stop_car()
+    # def goal_status(self, data):
+    #     # PENDING = 0  # The goal has yet to be processed by the action server
+    #     # ACTIVE = 1  # The goal is currently being processed by the action server
+    #     # PREEMPTED = 2  # The goal received a cancel request after it started executing
+    #     # #   and has since completed its execution (Terminal State)
+    #     # SUCCEEDED = 3  # The goal was achieved successfully by the action server (Terminal State)
+    #     # ABORTED = 4  # The goal was aborted during execution by the action server due
+    #     # #    to some failure (Terminal State)
+    #     # REJECTED = 5  # The goal was rejected by the action server without being processed,
+    #     # #    because the goal was unattainable or invalid (Terminal State)
+    #     # PREEMPTING = 6  # The goal received a cancel request after it started executing
+    #     # #    and has not yet completed execution
+    #     # RECALLING = 7  # The goal received a cancel request before it started executing,
+    #     # #    but the action server has not yet confirmed that the goal is canceled
+    #     # RECALLED = 8  # The goal received a cancel request before it started executing
+    #     # #    and was successfully cancelled (Terminal State)
+    #     # LOST = 9  # An action client can determine that a goal is LOST. This should not be
+    #     # #    sent over the wire by an action server
+    #     print(data.status.status)
+    #     if data.status.status == 3 or data.status.status == 5 or data.status.status == 4:
+    #         self.repositioning = False
+    #         if data.status.status == 3:
+    #             print("########## Goal achieved!")
+    #     if data.status.status == 9:
+    #         print("######### Car lost!")
+    #         self.car.stop_car()
 
     def update_car(self, data):
         # compute steering ang -30deg to 30deg
@@ -119,5 +122,7 @@ class Driver:
 
 if __name__ == '__main__':
     rospy.init_node("dr_driver")
-    driver = Driver()
+    param_dr_password = rospy.get_param("~dr_password", "JJo1qfmc")
+    param_dr_ip = rospy.get_param("~dr_ip", "192.168.1.100")
+    driver = Driver(param_dr_ip, param_dr_password)
     rospy.spin()
