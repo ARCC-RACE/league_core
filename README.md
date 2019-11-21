@@ -13,12 +13,13 @@ Core files for running automated ARCC League
 1. Install ROS melodic
 2. init and update git submodules
 3. `sudo apt install libunwind8-dev`
-4. `rosdep install --from-paths src --ignore-src -r -y`
-5. `catkin_make`
+4. `pip install requests_toolbelt`
+5. `rosdep install --from-paths src --ignore-src -r -y`
+6. `catkin_make`
    - You may need to download the SDK for the FLIR style cameras manually [follow this](https://answers.ros.org/question/233456/pointgrey_camera_driver-fails-to-compile/)
-5. Setup FLIR Camera udev rules by downloading the spinnaker viewer/driver from the link in the setting up the vision system section (software install link) and run the setup making sure to correctly enter the username when prompted (if your camera cannot be detect the reason is likely that the udev rules are not properly setup)
-6. In `/etc/default/grub` add the line `GRUB_CMDLINE_LINUX_DEFAULT="quiet splash usbcore.usbfs_memory_mb=1000"` then run `sudo update-grub`
-5. Calibrate Camera with tutorial [here]("http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration")
+7. Setup FLIR Camera udev rules by downloading the spinnaker viewer/driver from the link in the setting up the vision system section (software install link) and run the setup making sure to correctly enter the username when prompted (if your camera cannot be detect the reason is likely that the udev rules are not properly setup)
+8. In `/etc/default/grub` add the line `GRUB_CMDLINE_LINUX_DEFAULT="quiet splash usbcore.usbfs_memory_mb=1000"` then run `sudo update-grub`
+9. Calibrate Camera with tutorial [here]("http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration")
 
 ## Getting Started
 Once you have followed the setup instructions you can begin running ACC League software!
