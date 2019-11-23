@@ -106,8 +106,13 @@ class TrackUtil():
 
             if len(cnts) > 1:
                 # mask1 = outer, mask2 = inner track
-                cv2.drawContours(mask1, contours, cnts[0], 255, -1)  # Draw filled contour in mask
-                cv2.drawContours(mask2, contours, cnts[1], 255, -1)  # Draw filled contour in mask
+                cv2.drawContours(mask1, contours, cnts[0], 255, 5)  # Draw filled contour in mask
+                cv2.drawContours(mask2, contours, cnts[1], 255, 5)  # Draw filled contour in mask
+                if self.debug:
+                    cv2.imshow("mask", mask)
+                    cv2.imshow("mask1", mask1)
+                    cv2.imshow("mask2", mask2)
+
                 self.track_mask = cv2.bitwise_or(mask1, mask2)
                 if cv2.contourArea(contours[cnts[0]]) > cv2.contourArea(contours[cnts[1]]):  # mask 1 is the outer track
                     self.generate_waypoints(mask2, mask1)
@@ -245,7 +250,8 @@ class TrackUtil():
 
         # send the starting waypoint
         starting_pose = PoseStamped()
-        starting_pose.pose = self.waypoints.poses[0]
+        print(self.waypoints)
+        starting_pose.pose = waypoints.poses[0]
         self.starting_waypoint.publish(starting_pose)
 
     def get_nearest_waypoint(self, location_in_pixels):
