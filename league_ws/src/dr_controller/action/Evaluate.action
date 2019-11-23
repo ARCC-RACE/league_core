@@ -1,0 +1,15 @@
+#goal definition
+string model_file_path
+float64 maximum_speed
+int64 num_corrections_allowed
+int64 num_laps
+---
+#result definition
+float64 time
+float64 percent_complete
+int64 num_corrections
+---
+#feedback
+bool evaluating
+float64 elapsed_time
+float64 percent_complete

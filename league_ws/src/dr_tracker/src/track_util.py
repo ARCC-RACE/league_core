@@ -49,6 +49,7 @@ class TrackUtil():
         self.track_status_pub = rospy.Publisher("is_off_track", Bool, queue_size=1)
         self.waypoints_pub = rospy.Publisher("waypoints", PoseArray, queue_size=1, latch=True)
         self.nearest_waypoint_pub = rospy.Publisher("nearest_waypoint", PoseStamped, queue_size=1)
+        self.starting_waypoint = rospy.Publisher("starting_waypoint", PoseStamped, queue_size=1, latch=True)
 
         self.waypoints = None  # this will be a numpy array in pixel x,y coordinates and r,p,y orientation based on heading
         self.last_image_time = 0
@@ -241,6 +242,11 @@ class TrackUtil():
             pose.orientation.w = orientation[3]
             waypoints.poses.append(pose)
         self.waypoints_pub.publish(waypoints)
+
+        # send the starting waypoint
+        starting_pose = PoseStamped()
+        starting_pose.pose = self.waypoints.poses[0]
+        self.starting_waypoint.publish(starting_pose)
 
     def get_nearest_waypoint(self, location_in_pixels):
         min_dist = 9999
