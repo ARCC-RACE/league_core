@@ -15,7 +15,7 @@
     <include file="$(find dr_safety_driver)/launch/dr_nav.launch"/>
 
     <group if="$(arg launch_real_dr_driver)">
-        <node pkg="dr_safety_driver" type="dr_real_driver.py" name="dr_driver">
+        <node pkg="dr_controller" type="dr_real_driver.py" name="dr_driver">
             <param name="dr_ip" value="192.168.1.100"/>
             <param name="dr_password" value="JJo1qfmc"/>
         </node>
