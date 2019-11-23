@@ -1,12 +1,8 @@
 #!/usr/bin/python
 
 import rospy
-import numpy as np
-import math
 from geometry_msgs.msg import TransformStamped, PoseStamped
 from tf2_msgs.msg import TFMessage
-from std_msgs.msg import Header
-import tf
 
 
 def new_pose(data):
