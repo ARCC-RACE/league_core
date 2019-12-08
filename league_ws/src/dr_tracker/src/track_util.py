@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 
 import cv2
-import rospy
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
-import numpy as np
-from nav_msgs.msg import Odometry
-from move_base_msgs.msg import MoveBaseActionGoal
-from geometry_msgs.msg import PoseArray, Pose, PoseStamped
-from std_msgs.msg import Bool
-import time
-import tf
 import math
+import numpy as np
+import rospy
+import sys
+import tf
+import time
+from cv_bridge import CvBridge, CvBridgeError
+from geometry_msgs.msg import PoseArray, Pose, PoseStamped
+from move_base_msgs.msg import MoveBaseActionGoal
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Image
+from std_msgs.msg import Bool
 
 
 def constrain(x, min, max):
@@ -23,11 +24,16 @@ def constrain(x, min, max):
         return x
 
 
-class TrackUtil():
+def dist(x1, x2, y1, y2):
+    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+
+class TrackUtil:
 
     def __init__(self, debug_mode=True, temporal_filtering=2, line_contour_cutoff=100, cam_dist_from_ground=1,
                  camera_vertical_fov=80, camera_horizontal_fov=120, dr_height=0.254, track_line_lower=None,
-                 track_line_upper=None, blur_param=9, refresh_rate=0, center_point=(480, 100)):
+                 track_line_upper=None, blur_param=9, refresh_rate=0, center_point=(480, 100),
+                 waypoint_completion_distance=1.0):
         if track_line_lower is None:
             track_line_lower = [0, 0, 0]
         if track_line_upper is None:
@@ -45,6 +51,7 @@ class TrackUtil():
         self.center_point = center_point
         self.dr_height = dr_height
         self.camera_fov = np.array([camera_horizontal_fov, camera_vertical_fov])
+        self.waypoint_completion_distance = waypoint_completion_distance
 
         self.track_status_pub = rospy.Publisher("is_off_track", Bool, queue_size=1)
         self.waypoints_pub = rospy.Publisher("waypoints", PoseArray, queue_size=1, latch=True)
@@ -122,7 +129,8 @@ class TrackUtil():
                     cv2.imshow("mask2", mask2)
 
                 self.track_mask = cv2.bitwise_or(mask1, mask2)
-                if cv2.contourArea(contours[maximum_area_index]) > cv2.contourArea(contours[minimum_area_index]):  # mask 1 is the outer track
+                if cv2.contourArea(contours[maximum_area_index]) > cv2.contourArea(
+                        contours[minimum_area_index]):  # mask 1 is the outer track
                     self.generate_waypoints(mask2, mask1)
                 else:
                     self.generate_waypoints(mask1, mask2)
@@ -163,7 +171,14 @@ class TrackUtil():
         self.waypoints = []
         last_p = p1
         last_heading = 0
-        for i in range(118):
+        max_waypoints = 300  # maximum number of waypoints to create until stopping with error
+        # This function adds waypoints until the entire track is full or there are more than max_waypoints
+        while len(self.waypoints) < 10 or dist(self.waypoints[0][0], self.waypoints[len(self.waypoints - 1)][0],
+                                               self.waypoints[0][1], self.waypoints[len(self.waypoints - 1)][1]) < self.waypoint_completion_distance:
+
+            if len(self.waypoints) > max_waypoints:
+                rospy.logerror("Exceeded maximum number of waypoints allowed")
+                sys.exit(10)
 
             # compute the next point to use for generating a new waypoint
             new_p = None
@@ -200,8 +215,6 @@ class TrackUtil():
                     # outer_track_point = np.array([int(x), int(perpendicular_slope * (midpoint[0] - x) + midpoint[1])])
                     outer_track_point = np.array([int(midpoint[0] + x * (-1) ** round(x / 0.01)), int(
                         perpendicular_slope * (x * (-1) ** round(x / 0.01)) + midpoint[1])])
-                # cv2.line(self.track_mask, (int(midpoint[0]), int(midpoint[1])),
-                #          (int(outer_track_point[0]), int(outer_track_point[1])), 150, 5)
                 x -= 0.01  # make sure that no index is skipped using int() round() and += 0.5
             outer_inner_midpoint = (outer_track_point + midpoint) / 2.0
             if self.debug:
@@ -243,8 +256,8 @@ class TrackUtil():
             heading = waypoint[2]
             # convert waypoint position into meters
             waypoint = (waypoint[0:2] / (self.camera_resolution * 1.0)) * (
-                        2.0 * (self.cam_dist_from_ground - self.dr_height) * (
-                    np.tan(np.radians(self.camera_fov / 2.0))))
+                    2.0 * (self.cam_dist_from_ground - self.dr_height) * (
+                np.tan(np.radians(self.camera_fov / 2.0))))
             pose.position.x = waypoint[0]
             pose.position.y = -waypoint[1]
             orientation = tf.transformations.quaternion_from_euler(0, 0, heading)
@@ -326,6 +339,7 @@ if __name__ == "__main__":
     white_mask = map(int, rospy.get_param("~white_mask", "0, 0, 0, 180, 50, 255").split(','))
     center_point = map(int, rospy.get_param("~center_point", "400, 200").split(','))
     refresh_param = rospy.get_param('~refresh_rate', 10)
+    waypoint_completion_distance_param = rospy.get_param('~waypoint_completion_distance', 1.0)
 
     track = TrackUtil(debug_param, temporal_filtering_param, line_contour_cutoff,
                       cam_dist_from_ground_param, camera_vertical_fov_param, dr_height=dr_height_param,
@@ -333,7 +347,8 @@ if __name__ == "__main__":
                       blur_param=blur_param, refresh_rate=refresh_param,
                       track_line_lower=[white_mask[0], white_mask[1], white_mask[2]],
                       track_line_upper=[white_mask[3], white_mask[4], white_mask[5]],
-                      center_point=(center_point[0], center_point[1]))
+                      center_point=(center_point[0], center_point[1]),
+                      waypoint_completion_distance=waypoint_completion_distance_param)
 
     rospy.Subscriber(input_camera_topic_param, Image, track.process_image)
     rospy.Subscriber(odom_topic, Odometry, track.is_off_track)

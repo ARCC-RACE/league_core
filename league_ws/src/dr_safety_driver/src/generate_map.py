@@ -94,7 +94,8 @@ if __name__ == "__main__":
     horiz_factor = (2.0*args.d*math.tan(math.radians(args.f)/2.0))/res
     vert_factor = (2.0*args.d*math.tan(math.radians(args.v)/2.0))/res
     scaled_map = cv2.resize(map_img, (int(horiz_factor), int(vert_factor)))
-    cv2.imwrite("map.pgm", scaled_map)
+    program_dir = os.path.dirname(sys.argv[0])
+    cv2.imwrite(os.path.join(program_dir, "map.pgm"), scaled_map)
     print("Temporary map image saved to program dir as map.pgm")
     confirmation = raw_input("Is this good? y/n")
     if confirmation == "y":
