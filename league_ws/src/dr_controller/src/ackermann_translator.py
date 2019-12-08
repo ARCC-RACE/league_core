@@ -42,7 +42,7 @@ class AckermannTranslator:
         header.stamp = rospy.Time.now()
         ackermann_msg.header = header
 
-        # self.velocity = effort.data
+        self.velocity = effort.data
         ackermann_msg.drive.speed = self.velocity
         ackermann_msg.drive.steering_angle = self.steering  # last steering angle
         ackermann_pub.publish(ackermann_msg)
@@ -51,8 +51,8 @@ class AckermannTranslator:
         # update PID with current velocity with reference to car frame
         self.setpoint_pub.publish(Float64(data.linear.x))
 
-        # OVERRIDE PID
-        self.velocity = data.linear.x
+        # # OVERRIDE PID
+        # self.velocity = data.linear.x
 
         # send Ackermann message with steering angle
         ackermann_msg = AckermannDriveStamped()
