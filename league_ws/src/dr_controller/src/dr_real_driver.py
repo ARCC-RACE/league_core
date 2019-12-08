@@ -55,6 +55,11 @@ class Driver:
         self.lap_start_time = 0
         self.num_corrections = 0
 
+        # variables for evaluation action action server
+        # When action is called by web_api.launch then the car will begin 3 trials
+        self.evaluation_server = actionlib.SimpleActionServer('evaluate_model', EvaluateAction, self.run_eval,
+                                                              auto_start=False)
+
         # connect to rest of ARCC League systems
         rospy.Subscriber(off_track_topic, Bool, self.dr_track_status)  # track_util off track data source
         rospy.Subscriber(nearest_waypoint_topic, PoseStamped,
@@ -67,12 +72,6 @@ class Driver:
         # move_base_client for p2p navigation and resetting the car
         self.move_base_client = actionlib.SimpleActionClient('move_base',
                                                              MoveBaseAction)  # will be called when car goes off track or finishes and needs to be reset
-
-        # variables for evaluation action action server
-        # When action is called by web_api.launch then the car will begin 3 trials
-        self.evaluation_server = actionlib.SimpleActionServer('evaluate_model', EvaluateAction, self.run_eval,
-                                                              auto_start=False)
-        self.evaluation_server.start()
 
     def __del__(self):
         self.car.stop_car()  # make sure to stop the car when the node closes
@@ -189,7 +188,7 @@ class Driver:
         goal.target_pose = setpoint
         goal.target_pose.header.stamp = rospy.Time.now()
         self.move_base_client.send_goal(goal)
-        wait = self.move_base_client.wait_for_result(rospy.Duration.from_sec(30.0))
+        wait = self.move_base_client.wait_for_result(rospy.Duration.from_sec(120.0))
         # If the result doesn't arrive, assume the Server is not available
         if not wait:
             rospy.logerr("Action server not available!")
@@ -206,7 +205,7 @@ class Driver:
             drive = data.drive.speed
 
             # handle deadzones
-            drive_deadzone = [0.4, -0.9]
+            drive_deadzone = [0.35, -0.35]
             if drive > 0:
                 # drive = drive_deadzone[0] + drive ** 5  # exponential control
                 drive = drive_deadzone[0]

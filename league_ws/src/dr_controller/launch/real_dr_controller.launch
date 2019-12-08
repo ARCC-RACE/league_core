@@ -1,7 +1,7 @@
 <launch>
-        <node pkg="dr_controller" type="dr_real_driver.py" name="dr_driver">
-            <param name="dr_ip" value="192.168.1.100"/>
-            <param name="dr_password" value="JJo1qfmc"/>
+        <node pkg="dr_controller" type="dr_real_driver.py" name="dr_driver" output="screen">
+            <param name="dr_ip" value="192.168.1.101"/>
+            <param name="dr_password" value="uGRqirr3"/>
         </node>
 
         <node type="ackermann_translator.py" name="ackermann_translator" pkg="dr_controller" output="screen">

@@ -99,11 +99,11 @@ class TrackDR:
     def filter_image(self):
         # blur = cv2.medianBlur(self.cv_image_raw, self.blur_param)
         # blur = cv2.bilateralFilter(self.cv_image_raw, self.blur_param, 75, 75)
-        # blur = cv2.GaussianBlur(self.cv_image_raw, (self.blur_param, self.blur_param), 0)
+        blur = cv2.GaussianBlur(self.cv_image_raw, (self.blur_param, self.blur_param), 0)
         # if self.display_windows:
         #     cv2.imshow("Filter image window", blur)
         #     cv2.imshow("Blurred image window", blur)
-        self.cv_image_filtered = self.cv_image_raw
+        self.cv_image_filtered = blur
 
     def detect_dr_arrow(self):
         """Detects the red arrow that indicates the location and direction of the Deepracer"""

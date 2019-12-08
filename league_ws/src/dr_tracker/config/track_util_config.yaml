@@ -2,7 +2,7 @@
 
 debug: True
 temporal_filtering: 0 # unused
-line_contour_cutoff: 1000
+line_contour_cutoff: 200000
 camera_dist_from_ground: 2.86
 camera_vertical_fov: 67.5
 camera_horizontal_fov: 120

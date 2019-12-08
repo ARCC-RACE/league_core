@@ -96,25 +96,33 @@ class TrackUtil():
             mask1 = np.zeros(eroded_mask.shape, dtype=np.uint8)  # outer + inner track
             mask2 = np.zeros(eroded_mask.shape, dtype=np.uint8)  # inner track
             _, contours, _ = cv2.findContours(eroded_mask, 1, 2)  # find contour in mask for white lines
-            cnts = []
+            maximum_area = 0
+            maximum_area_index = None  # used for determining the outer track
+            minimum_area = 99999999
+            minimum_area_index = None  # for determining inner track
             for i, cnt in enumerate(contours):
                 area = cv2.contourArea(cnt)
                 if self.line_contour_cutoff < area:
-                    cnts.append(i)
+                    if area > maximum_area:
+                        maximum_area = area
+                        maximum_area_index = i
+                    if area < minimum_area:
+                        minimum_area = area
+                        minimum_area_index = i
                     if self.debug:
                         print("Area of contour " + str(i) + ": " + str(area))
 
-            if len(cnts) > 1:
+            if minimum_area_index is not None and maximum_area_index is not None:
                 # mask1 = outer, mask2 = inner track
-                cv2.drawContours(mask1, contours, cnts[0], 255, 5)  # Draw filled contour in mask
-                cv2.drawContours(mask2, contours, cnts[1], 255, 5)  # Draw filled contour in mask
+                cv2.drawContours(mask1, contours, maximum_area_index, 255, 5)  # Draw filled contour in mask
+                cv2.drawContours(mask2, contours, minimum_area_index, 255, 5)  # Draw filled contour in mask
                 if self.debug:
                     cv2.imshow("mask", mask)
                     cv2.imshow("mask1", mask1)
                     cv2.imshow("mask2", mask2)
 
                 self.track_mask = cv2.bitwise_or(mask1, mask2)
-                if cv2.contourArea(contours[cnts[0]]) > cv2.contourArea(contours[cnts[1]]):  # mask 1 is the outer track
+                if cv2.contourArea(contours[maximum_area_index]) > cv2.contourArea(contours[minimum_area_index]):  # mask 1 is the outer track
                     self.generate_waypoints(mask2, mask1)
                 else:
                     self.generate_waypoints(mask1, mask2)
@@ -155,7 +163,7 @@ class TrackUtil():
         self.waypoints = []
         last_p = p1
         last_heading = 0
-        for i in range(20):
+        for i in range(118):
 
             # compute the next point to use for generating a new waypoint
             new_p = None
