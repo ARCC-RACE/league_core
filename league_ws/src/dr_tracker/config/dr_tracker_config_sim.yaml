@@ -1,6 +1,6 @@
 # Config file for loading tracking parameters for the simulated ARCC League
 
-debug: True
+debug: False
 temporal_filtering: 0
 dr_contour_area_cutoff: 120
 camera_dist_from_ground: 1

@@ -5,6 +5,7 @@
 import rospy
 from ackermann_msgs.msg import AckermannDriveStamped
 from web_interface_core import DRInterface
+from sim_interface_core import SimDRInterface
 from geometry_msgs.msg import PoseStamped, PoseArray
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from dr_controller.msg import EvaluateAction, EvaluateFeedback, EvaluateResult
@@ -31,10 +32,13 @@ class Driver:
 
     def __init__(self, dr_ip="192.168.1.100", dr_password="JJo1qfmc", off_track_topic="/is_off_track",
                  nearest_waypoint_topic="/nearest_waypoint", starting_waypoint_topic="/starting_waypoint",
-                 lower_deadzone=-0.3, upper_deadzone=0.3):
+                 lower_deadzone=-0.3, upper_deadzone=0.3, use_sim=False):
 
         # start car
-        self.car = DRInterface(dr_password, dr_ip)
+        if use_sim:
+            self.car = SimDRInterface(dr_password, dr_ip)
+        else:
+            self.car = DRInterface(dr_password, dr_ip)
         self.car.log_on()
         self.car.set_manual_mode()
         self.car.start_car()
@@ -48,6 +52,7 @@ class Driver:
         self.waypoints = None
         self.upper_deadzone = upper_deadzone
         self.lower_deadzone = lower_deadzone
+        self.use_sim = use_sim
 
         # operational variables
         self.repositioning = False  # is the DR currently attempting a goal
@@ -74,7 +79,7 @@ class Driver:
 
         # move_base_client for p2p navigation and resetting the car
         self.move_base_client = actionlib.SimpleActionClient('move_base',
-                                                             MoveBaseAction)  # will be called when car goes off track or finishes and needs to be reset
+                                                             MoveBaseAction)  # will be called when car goes off track or finishes and needs to be resetf
 
     def __del__(self):
         self.car.stop_car()  # make sure to stop the car when the node closes
@@ -228,6 +233,7 @@ if __name__ == '__main__':
     param_dr_ip = rospy.get_param("~dr_ip", "192.168.1.100")
     param_lower_deadzone = rospy.get_param("~lower_deadzone", -0.3)
     param_upper_deadzone = rospy.get_param("~upper_deadzone", 0.3)
+    param_use_sim = rospy.get_param("~use_sim", False)
     driver = Driver(param_dr_ip, param_dr_password, lower_deadzone=param_lower_deadzone,
-                    upper_deadzone=param_upper_deadzone)
+                    upper_deadzone=param_upper_deadzone, use_sim=param_use_sim)
     rospy.spin()

@@ -6,7 +6,7 @@ import json
 
 
 # Class that interfaces with thea web page to control the DeepRacer, load models, and receive camera data
-class DRInterface():
+class DRInterface:
     def __init__(self, password, ip='192.168.1.100', name="deep_racer"):
         self.session = requests.Session()
         urllib3.disable_warnings()
