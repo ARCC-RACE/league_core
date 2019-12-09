@@ -109,6 +109,7 @@ class TrackUtil:
             minimum_area_index = None  # for determining inner track
             for i, cnt in enumerate(contours):
                 area = cv2.contourArea(cnt)
+                rospy.loginfo("Area of contour " + str(i) + ": " + str(area))
                 if self.line_contour_cutoff < area:
                     if area > maximum_area:
                         maximum_area = area
@@ -116,8 +117,14 @@ class TrackUtil:
                     if area < minimum_area:
                         minimum_area = area
                         minimum_area_index = i
-                    if self.debug:
-                        print("Area of contour " + str(i) + ": " + str(area))
+
+                    rospy.loginfo("###################BIG ENOUGH Area of contour " + str(i) + ": " + str(area))
+
+            # if the areas are not divergent enough by percent (default is 10%) then do not use them
+            if (maximum_area-minimum_area)/maximum_area < 0.1:
+                maximum_area_index = None
+                minimum_area_index = None
+                rospy.logerr("Insufficient area percent difference")
 
             if minimum_area_index is not None and maximum_area_index is not None:
                 # mask1 = outer, mask2 = inner track
@@ -173,8 +180,8 @@ class TrackUtil:
         last_heading = 0
         max_waypoints = 300  # maximum number of waypoints to create until stopping with error
         # This function adds waypoints until the entire track is full or there are more than max_waypoints
-        while len(self.waypoints) < 10 or dist(self.waypoints[0][0], self.waypoints[len(self.waypoints - 1)][0],
-                                               self.waypoints[0][1], self.waypoints[len(self.waypoints - 1)][1]) < self.waypoint_completion_distance:
+        while len(self.waypoints) < 10 or dist(self.waypoints[0][0], self.waypoints[len(self.waypoints) - 1][0],
+                                               self.waypoints[0][1], self.waypoints[len(self.waypoints) - 1][1]) > self.waypoint_completion_distance:
 
             if len(self.waypoints) > max_waypoints:
                 rospy.logerror("Exceeded maximum number of waypoints allowed")
@@ -235,6 +242,9 @@ class TrackUtil:
                 print("midpoint: " + str(midpoint))
                 print("outer point: " + str(outer_track_point))
                 print("perpendicular slope: " + str(perpendicular_slope))
+                print("distance to zero: " + str(dist(self.waypoints[0][0], self.waypoints[len(self.waypoints) - 1][0],
+                                               self.waypoints[0][1], self.waypoints[len(self.waypoints) - 1][1])))
+                print("waypoint number: " + str(len(self.waypoints)))
                 cv2.circle(self.track_mask, (last_p[0], last_p[1]), 5, 200, thickness=10)
                 cv2.circle(self.track_mask, (new_p[0], new_p[1]), 5, 100, thickness=10)
                 print("")
@@ -244,7 +254,7 @@ class TrackUtil:
 
         for i in range(len(self.waypoints)):
             cv2.circle(self.track_mask, (int(self.waypoints[i][0]), int(self.waypoints[i][1])), 5, 255, thickness=10)
-        print(self.waypoints)
+        rospy.loginfo("Number of waypoints: "+ str(len(self.waypoints)))
 
     def send_waypoints(self):
         waypoints = PoseArray()
@@ -271,7 +281,6 @@ class TrackUtil:
 
         # send the starting waypoint
         starting_pose = PoseStamped()
-        print(self.waypoints)
         starting_pose.pose = waypoints.poses[0]
         self.starting_waypoint.publish(starting_pose)
 
