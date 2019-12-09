@@ -119,7 +119,7 @@ class Driver:
             self.evaluation_server.publish_feedback(feedback)
 
             # Start the autonomous car, monitor if it goes off track
-            self.lap_start_time = rospy.Time.now()  # starting timer
+            self.lap_start_time = rospy.get_time()  # starting timer
             self.num_corrections = 0
             self.car.start_car()
 
@@ -128,14 +128,14 @@ class Driver:
             while self.nearest_waypoint.pose != self.starting_waypoint.pose and self.num_corrections <= goal.num_corrections_allowed:
                 # will trigger system to begin recording
                 feedback.evaluating = True
-                feedback.elapsed_time = rospy.Time.now() - self.lap_start_time
+                feedback.elapsed_time = rospy.get_time() - self.lap_start_time
                 feedback.percent_complete = 100.0*abs(self.nearest_waypoint_index - self.starting_waypoint_index)/self.num_waypoints
                 self.evaluation_server.publish_feedback(feedback)
 
             self.car.stop_car()
             rospy.loginfo("Lap complete")
 
-            result.time = rospy.Time.now() - self.lap_start_time
+            result.time = rospy.get_time() - self.lap_start_time
             if self.num_corrections <= goal.num_corrections_allowed:  # if lap completed then give 100% even though progress evaluates to 0
                 result.percent_complete = 100.0
             else:
@@ -157,7 +157,7 @@ class Driver:
                 self.car.start_car()
             else:
                 self.car.stop_car()
-            self.lap_start_time += rospy.Time.now() - current_lap_time  # time resetting car does not count for time in the lap
+            self.lap_start_time += rospy.get_time() - current_lap_time  # time resetting car does not count for time in the lap
 
     def update_waypoints(self, data):
         self.waypoints = data

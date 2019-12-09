@@ -14,5 +14,5 @@
 
     <include file="$(find dr_safety_driver)/launch/dr_nav_sim.launch"/>
 
-<!--    <include file="$(find dr_controller)/launch/real_dr_controller.launch"/>-->
+<!--    <include file="$(find dr_controller)/launch/sim_dr_controller.launch"/>-->
 </launch>

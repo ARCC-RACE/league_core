@@ -34,7 +34,6 @@ class AckermannTranslator:
 
     # receive update from PID
     def new_speed(self, effort):
-        ackermann_pub = rospy.Publisher('ackermann_cmd', AckermannDriveStamped, queue_size=1)
         ackermann_msg = AckermannDriveStamped()
 
         header = Header()
@@ -45,7 +44,7 @@ class AckermannTranslator:
         self.velocity = effort.data  # comment out to OVERRIDE PID
         ackermann_msg.drive.speed = self.velocity
         ackermann_msg.drive.steering_angle = self.steering  # last steering angle
-        ackermann_pub.publish(ackermann_msg)
+        self.ackermann_pub.publish(ackermann_msg)
 
     def new_cmd(self, data):
         # update PID with current velocity with reference to car frame

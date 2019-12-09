@@ -46,7 +46,7 @@ class SimDRInterface:
 
     def send_drive_command(self, steering_angle, throttle):
 
-        throttle = throttle*10  # simulation needs values to be increased for descent speed
+        throttle = -throttle*100  # simulation needs values to be increased for descent speed
         steer = range_map(steering_angle, -1, 1, -math.pi/6, math.pi/6)  # map back to radians
 
         # Set angle and throttle commands from -1 to 1
