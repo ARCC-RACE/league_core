@@ -1,0 +1,18 @@
+<launch>
+    <arg name="launch_track_utils" default="true"/>
+    <arg name="launch_sim" default="true"/>
+
+    <group if="$(arg launch_sim)">
+        <include file="$(find deepracer_simulation)/launch/racetrack_with_racecar_and_camera.launch"/>
+    </group>
+
+    <include file="$(find dr_tracker)/launch/dr_tracker_sim.launch"/>
+
+    <group if="$(arg launch_track_utils)">
+        <include file="$(find dr_tracker)/launch/track_util_sim.launch"/>
+    </group>
+
+    <include file="$(find dr_safety_driver)/launch/dr_nav_sim.launch"/>
+
+<!--    <include file="$(find dr_controller)/launch/real_dr_controller.launch"/>-->
+</launch>
