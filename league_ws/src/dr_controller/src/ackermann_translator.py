@@ -42,7 +42,7 @@ class AckermannTranslator:
         header.stamp = rospy.Time.now()
         ackermann_msg.header = header
 
-        self.velocity = effort.data
+        self.velocity = effort.data  # comment out to OVERRIDE PID
         ackermann_msg.drive.speed = self.velocity
         ackermann_msg.drive.steering_angle = self.steering  # last steering angle
         ackermann_pub.publish(ackermann_msg)

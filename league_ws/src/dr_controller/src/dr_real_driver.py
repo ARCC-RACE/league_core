@@ -30,7 +30,8 @@ def constrain(x, min, max):
 class Driver:
 
     def __init__(self, dr_ip="192.168.1.100", dr_password="JJo1qfmc", off_track_topic="/is_off_track",
-                 nearest_waypoint_topic="/nearest_waypoint", starting_waypoint_topic="/starting_waypoint"):
+                 nearest_waypoint_topic="/nearest_waypoint", starting_waypoint_topic="/starting_waypoint",
+                 lower_deadzone=-0.3, upper_deadzone=0.3):
 
         # start car
         self.car = DRInterface(dr_password, dr_ip)
@@ -45,6 +46,8 @@ class Driver:
         self.current_ai_model_name = None  # Currently loaded AI model
         self.num_waypoints = None
         self.waypoints = None
+        self.upper_deadzone = upper_deadzone
+        self.lower_deadzone = lower_deadzone
 
         # operational variables
         self.repositioning = False  # is the DR currently attempting a goal
@@ -205,13 +208,14 @@ class Driver:
             drive = data.drive.speed
 
             # handle deadzones
-            drive_deadzone = [0.35, -0.35]
             if drive > 0:
                 # drive = drive_deadzone[0] + drive ** 5  # exponential control
-                drive = drive_deadzone[0]
+                # drive = self.upper_deadzone
+                drive = range_map(drive, 0, 1, self.upper_deadzone, 1)
             elif drive < 0:
                 # drive = drive_deadzone[1] + drive ** 5
-                drive = drive_deadzone[1]
+                # drive = self.lower_deadzone
+                drive = range_map(drive, -1, 0, -1, self.lower_deadzone)
             drive = constrain(drive, -1.0, 1.0)
 
             rospy.loginfo("Steer Raw: %f Steer: %f Drive: %f" % (data.drive.steering_angle, steer, drive))
@@ -222,5 +226,8 @@ if __name__ == '__main__':
     rospy.init_node("dr_driver")
     param_dr_password = rospy.get_param("~dr_password", "JJo1qfmc")
     param_dr_ip = rospy.get_param("~dr_ip", "192.168.1.100")
-    driver = Driver(param_dr_ip, param_dr_password)
+    param_lower_deadzone = rospy.get_param("~lower_deadzone", -0.3)
+    param_upper_deadzone = rospy.get_param("~upper_deadzone", 0.3)
+    driver = Driver(param_dr_ip, param_dr_password, lower_deadzone=param_lower_deadzone,
+                    upper_deadzone=param_upper_deadzone)
     rospy.spin()
