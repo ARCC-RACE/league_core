@@ -103,7 +103,7 @@ class TrackUtil:
             mask1 = np.zeros(eroded_mask.shape, dtype=np.uint8)  # outer + inner track
             mask2 = np.zeros(eroded_mask.shape, dtype=np.uint8)  # inner track
             _, contours, _ = cv2.findContours(eroded_mask, 1, 2)  # find contour in mask for white lines
-            maximum_area = 0
+            maximum_area = 1
             maximum_area_index = None  # used for determining the outer track
             minimum_area = 99999999
             minimum_area_index = None  # for determining inner track
@@ -122,6 +122,8 @@ class TrackUtil:
 
             # if the areas are not divergent enough by percent (default is 10%) then do not use them
             if (maximum_area-minimum_area)/maximum_area < 0.1:
+                cv2.imshow("mask", mask)
+                cv2.waitKey(50)
                 maximum_area_index = None
                 minimum_area_index = None
                 rospy.logerr("Insufficient area percent difference")

@@ -1,6 +1,6 @@
 #Config file for loading the default values for tracking the DeepRacer
 
-debug: True
+debug: False
 temporal_filtering: 0 # unused
 line_contour_cutoff: 200000 # tune in order to be left with only inner and outer track
 camera_dist_from_ground: 2.86
@@ -16,6 +16,6 @@ blur_param: 9 # odd number, tune to reduce noise
 white_mask: "0, 0, 200, 175, 50, 255"
 refresh_rate: 0
 center_point: "600, 300" # center for revolving xor mask (x,y) point
-waypoint_completion_distance: 1.0 # how far the waypoints should be from each other at the finish. This is
+waypoint_completion_distance: 50.0 # how far the waypoints should be from each other at the finish. This is
 # how the algorithm determines when it is done laying waypoints
 #camera_topic: "/static_camera/image_raw"
