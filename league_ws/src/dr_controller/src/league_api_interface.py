@@ -74,6 +74,7 @@ class League_api:
 
                 self.model_under_eval = None
                 self.update_eval_queue()
+        rospy.loginfo("No models to evaluate at this time")
 
 
 if __name__ == "__main__":

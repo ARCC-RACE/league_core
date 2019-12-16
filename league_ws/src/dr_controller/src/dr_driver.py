@@ -11,8 +11,12 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from dr_controller.msg import EvaluateAction, EvaluateFeedback, EvaluateResult
 import actionlib
 from std_msgs.msg import Bool
+from sensor_msgs.msg import Joy, Image
+from cv_bridge import CvBridge, CvBridgeError
 import math
 import os
+from tf.transformations import euler_from_quaternion
+from nav_msgs.msg import Odometry
 
 
 def range_map(x, in_min, in_max, out_min, out_max):
@@ -32,7 +36,8 @@ class Driver:
 
     def __init__(self, dr_ip="192.168.1.100", dr_password="JJo1qfmc", off_track_topic="/is_off_track",
                  nearest_waypoint_topic="/nearest_waypoint", starting_waypoint_topic="/starting_waypoint",
-                 lower_deadzone=-0.3, upper_deadzone=0.3, use_sim=False):
+                 lower_deadzone=-0.3, upper_deadzone=0.3, use_sim=False, human_driver=False, debug=False,
+                 rot_tolerance=math.pi/3, dist_tolerance=0.1, camera_topic="/usb_cam/image_rect_color"):
 
         # start car
         if use_sim:
@@ -53,6 +58,8 @@ class Driver:
         self.upper_deadzone = upper_deadzone
         self.lower_deadzone = lower_deadzone
         self.use_sim = use_sim
+        self.car_odom = None
+        self.recording_video = False
 
         # operational variables
         self.repositioning = False  # is the DR currently attempting a goal
@@ -62,24 +69,38 @@ class Driver:
         self.nearest_waypoint_index = None
         self.lap_start_time = 0
         self.num_corrections = 0
+        self.debug = debug
+        self.human_driver = human_driver
+        self.rot_tolerance = rot_tolerance # rotation tolerance for human driver to achieve goal
+        self.dist_tolerance = dist_tolerance  # rotation tolerance for human driver to achieve goal
+        self.camera_topic = camera_topic
+
+        # video recorders
+        self.overhead_out = None
 
         # variables for evaluation action action server
         # When action is called by web_api.launch then the car will begin 3 trials
-        self.evaluation_server = actionlib.SimpleActionServer('evaluate_model', EvaluateAction, self.run_eval,
-                                                              auto_start=False)
+        self.evaluation_server = actionlib.SimpleActionServer('evaluate_model', EvaluateAction, self.run_eval, auto_start=False)
+
+        # input sources for resetting the car
+        if self.human_driver:
+            rospy.Subscriber("/joy", Joy, self.update_car)
+            rospy.Subscriber("/odometry/filtered", Odometry, self.update_car_odom)
+            self.goal_pose_pub = rospy.Publisher("goal_pose", PoseStamped, queue_size=10, latch=True)  # track_util off track data source
+        else:
+            # move_base_client for p2p navigation and resetting the car
+            # will be called when car goes off track or finishes and needs to be reset
+            self.move_base_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+            rospy.Subscriber("/ackermann_cmd", AckermannDriveStamped, self.update_car)  # move_base ackermann steering cmd
 
         # connect to rest of ARCC League systems
-        rospy.Subscriber(off_track_topic, Bool, self.dr_track_status)  # track_util off track data source
+        rospy.Subscriber(off_track_topic, Bool, self.dr_track_status, queue_size=1)  # track_util off track data source
         rospy.Subscriber(nearest_waypoint_topic, PoseStamped,
                          self.update_nearest_waypoint)  # track_util nearest waypoint data source
         rospy.Subscriber("/waypoints", PoseArray, self.update_waypoints)  # track_util nearest waypoint data source
-        rospy.Subscriber(starting_waypoint_topic, PoseStamped,
-                         self.update_starting_waypoint)  # track_util nearest waypoint data source
-        rospy.Subscriber("/ackermann_cmd", AckermannDriveStamped, self.update_car)  # move_base ackermann steering cmd
+        rospy.Subscriber(starting_waypoint_topic, PoseStamped, self.update_starting_waypoint)  # track_util nearest waypoint data source
 
-        # move_base_client for p2p navigation and resetting the car
-        self.move_base_client = actionlib.SimpleActionClient('move_base',
-                                                             MoveBaseAction)  # will be called when car goes off track or finishes and needs to be resetf
+        rospy.Subscriber(self.camera_topic, Image, self.new_overhead_image)
 
     def __del__(self):
         self.car.stop_car()  # make sure to stop the car when the node closes
@@ -118,8 +139,10 @@ class Driver:
             feedback.percent_complete = 0
             self.evaluation_server.publish_feedback(feedback)
 
+            ########################################################
             # Start the autonomous car, monitor if it goes off track
             self.lap_start_time = rospy.get_time()  # starting timer
+            self.recording_video = True # start video recording
             self.num_corrections = 0
             self.car.start_car()
 
@@ -134,6 +157,7 @@ class Driver:
 
             self.car.stop_car()
             rospy.loginfo("Lap complete")
+            self.recording_video = False # stop video recording
 
             result.time = rospy.get_time() - self.lap_start_time
             if self.num_corrections <= goal.num_corrections_allowed:  # if lap completed then give 100% even though progress evaluates to 0
@@ -144,6 +168,26 @@ class Driver:
             result.num_corrections = self.num_corrections
             self.evaluation_server.set_succeeded(result)
             self.is_evaluating = False
+
+    def new_overhead_image(self, img):
+        cv_image = None
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError as e:
+            rospy.logerr(e)
+        (rows, cols, channels) = cv_image.shape
+
+        if self.recording_video:
+            if self.overhead_out is None: # if video recording just started
+                # Define the codec and create VideoWriter object
+                fourcc = cv2.VideoWriter_fourcc(*'XVID')
+                self.overhead_out = cv2.VideoWriter('overhead.avi', fourcc, 30.0, (rows, cols))
+
+            self.overhead_out.write(cv_image)
+        else:
+            if self.recording_video is not None: #if video recording just ended
+                self.overhead_out.release()
+            self.overhead_out = None
 
     def dr_track_status(self, data):
         current_lap_time = self.lap_start_time
@@ -191,39 +235,70 @@ class Driver:
 
         self.repositioning = True
 
-        self.move_base_client.wait_for_server()
-        goal = MoveBaseGoal()
-        goal.target_pose = setpoint
-        goal.target_pose.header.stamp = rospy.Time.now()
-        self.move_base_client.send_goal(goal)
-        wait = self.move_base_client.wait_for_result(rospy.Duration.from_sec(120.0))
-        # If the result doesn't arrive, assume the Server is not available
-        if not wait:
-            rospy.logerr("Action server not available!")
-            return False
+        if self.human_driver:
+            rospy.loginfo("Please navigate to the illuminated waypoint to reset car within tolerance")
+            self.goal_pose_pub.publish(setpoint)
+            is_within_tolerance = False
+            while not is_within_tolerance:
+                if self.car_odom is None: # if odom value has not been received yet
+                    rospy.logerr("Odom not received")
+                    continue
+                (_, _, setpoint_yaw) = euler_from_quaternion([setpoint.pose.orientation.x, setpoint.pose.orientation.y, setpoint.pose.orientation.z, setpoint.pose.orientation.w])
+                (_, _, actual_yaw) = euler_from_quaternion([self.car_odom.pose.pose.orientation.x, self.car_odom.pose.pose.orientation.y, self.car_odom.pose.pose.orientation.z, self.car_odom.pose.pose.orientation.w])
+                rot_error = min((2 * math.pi) - abs(setpoint_yaw - actual_yaw), abs(setpoint_yaw - actual_yaw))# rotation error from goal
+                dist_error = math.sqrt((self.car_odom.pose.pose.position.x - setpoint.pose.position.x)**2+(self.car_odom.pose.pose.position.y - setpoint.pose.position.y)**2) # distance error from goal
+
+                if self.debug:
+                    rospy.loginfo("rotation error: %f distance error: %f"%(rot_error, dist_error))
+                if dist_error < self.dist_tolerance and rot_error < self.rot_tolerance:
+                    is_within_tolerance = True
+                    rospy.loginfo("Car reset within tolerance")
+
+        else:
+            self.move_base_client.wait_for_server()
+            goal = MoveBaseGoal()
+            goal.target_pose = setpoint
+            goal.target_pose.header.stamp = rospy.Time.now()
+            self.move_base_client.send_goal(goal)
+            wait = self.move_base_client.wait_for_result(rospy.Duration.from_sec(120.0))
+            # If the result doesn't arrive, assume the Server is not available
+            if not wait:
+                rospy.logerr("Action server not available!")
+                return False
         self.repositioning = False
         return True
+
+    def update_car_odom(self, data): # only used when human driver function in use
+        self.car_odom = data
 
     def update_car(self, data):
         # If the car is in the process of repositioning to a new waypoint then turn off AI and take control
         if self.repositioning:
             # compute steering angle -30deg to 30deg
-            steer = constrain(data.drive.steering_angle, -math.pi / 6, math.pi / 6)
-            steer = range_map(steer, -math.pi / 6, math.pi / 6, -1.0, 1.0)
-            drive = data.drive.speed
+            if self.human_driver: # the data is or type Joy
+                # axes[0] = steer
+                # axes[2] = reverse
+                # axes[5] = forward
+                raw_steering = data.axes[0]
+                steer = -data.axes[0]
+                drive = range_map(data.axes[5], 1, -1, 0, 1) + range_map(data.axes[2], 1, -1, 0, -1)
+                drive_raw = drive
+            else:
+                raw_steering = data.drive.steering_angle
+                steer = constrain(data.drive.steering_angle, -math.pi / 6, math.pi / 6)
+                steer = range_map(steer, -math.pi / 6, math.pi / 6, -1.0, 1.0)
+                drive = data.drive.speed
+                drive_raw = drive
 
             # handle deadzones
             if drive > 0:
-                # drive = drive_deadzone[0] + drive ** 5  # exponential control
-                # drive = self.upper_deadzone
                 drive = range_map(drive, 0, 1, self.upper_deadzone, 1)
             elif drive < 0:
-                # drive = drive_deadzone[1] + drive ** 5
-                # drive = self.lower_deadzone
                 drive = range_map(drive, -1, 0, -1, self.lower_deadzone)
             drive = constrain(drive, -1.0, 1.0)
 
-            rospy.loginfo("Steer Raw: %f Steer: %f Drive: %f" % (data.drive.steering_angle, steer, drive))
+            if self.debug:
+                rospy.loginfo("Steer Raw: %f Steer: %f Drive Raw: %f Drive: %f" % (raw_steering, steer, drive_raw, drive))
             self.car.send_drive_command(steer * -1.0, drive * -1.0)
 
 
@@ -233,7 +308,14 @@ if __name__ == '__main__':
     param_dr_ip = rospy.get_param("~dr_ip", "192.168.1.100")
     param_lower_deadzone = rospy.get_param("~lower_deadzone", -0.3)
     param_upper_deadzone = rospy.get_param("~upper_deadzone", 0.3)
+    dist_tolerance_param = rospy.get_param("~dist_tolerance", 0.1)
+    rot_tolerance_param = rospy.get_param("~rot_tolerance", 1.0)
     param_use_sim = rospy.get_param("~use_sim", False)
+    debug_param = rospy.get_param("~debug", True)
+    human_driver_param = rospy.get_param("~human_driver", False) # this param dictates whether to use move_base TEB or human to reset the car
+    camera_topic_param = rospy.get_param("~camera_topic", "/usb_cam/image_rect_color")
     driver = Driver(param_dr_ip, param_dr_password, lower_deadzone=param_lower_deadzone,
-                    upper_deadzone=param_upper_deadzone, use_sim=param_use_sim)
+                    upper_deadzone=param_upper_deadzone, use_sim=param_use_sim, debug=debug_param,
+                    human_driver=human_driver_param, dist_tolerance=dist_tolerance_param,
+                    rot_tolerance=rot_tolerance_param, camera_topic=camera_topic_param)
     rospy.spin()

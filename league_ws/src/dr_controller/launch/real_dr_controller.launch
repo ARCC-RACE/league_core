@@ -1,4 +1,47 @@
 <launch>
+
+        <arg name="human_driver" default="true"/>
+        <arg name="debug" default="false"/>
+
+        <group if="$(arg human_driver)">
+         <!-- joy node -->
+          <node respawn="true" pkg="joy" type="joy_node" name="joy" >
+            <param name="deadzone" value="0.1" />
+          </node>
+        </group>
+
+        <group unless="$(arg human_driver)">
+          <node type="ackermann_translator.py" name="ackermann_translator" pkg="dr_controller" output="screen">
+              <param name="wheelbase" value="0.16"/>
+          </node>
+
+          <node name="drive_pid" pkg="pid" type="controller" ns="drive_pid">
+              <param name="Kp" value="2" />
+              <param name="Ki" value="0.3" />
+              <param name="Kd" value="0.0" />
+              <param name="rate" value="50" />
+              <param name="upper_limit" value="1.0" />
+              <param name="lower_limit" value="-1.0" />
+              <param name="windup_limit" value="0.8" />
+          </node>
+        </group>
+
+        <node pkg="dr_controller" type="dr_driver.py" name="dr_driver" output="screen">
+            <param name="dr_ip" value="192.168.1.101"/>
+            <param name="dr_password" value="uGRqirr3"/>
+            <param name="upper_deadzone" value="0.3"/>
+            <param name="lower_deadzone" value="-0.3"/>
+            <param name="use_sim" value="False"/>
+            <param name="human_driver" value="$(arg human_driver)"/>
+            <param name="debug" value="$(arg debug)"/>
+            <param name="dist_tolerance" value="0.1"/>
+            <param name="rot_tolerance" value="1.0"/>
+            <param name="camera_topic=" value="/usb_cam/image_rect_color"/>
+        </node>
+
+</launch>
+
+<!-- <launch>
         <node pkg="dr_controller" type="dr_driver.py" name="dr_driver" output="screen">
             <param name="dr_ip" value="192.168.1.101"/>
             <param name="dr_password" value="uGRqirr3"/>
@@ -20,4 +63,4 @@
           <param name="windup_limit" value="0.8" />
         </node>
 
-</launch>
+</launch> -->

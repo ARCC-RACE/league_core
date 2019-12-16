@@ -13,7 +13,7 @@ Core files for running automated ARCC League
 1. Install ROS melodic
 2. init and update git submodules
 3. `sudo apt install libunwind8-dev`
-4. `pip install requests_toolbelt`
+4. `sudo apt-get install python-requests python-requests-toolbelt`
 5. `rosdep install --from-paths src --ignore-src -r -y`
 6. `catkin_make`
    - You may need to download the SDK for the FLIR style cameras manually [follow this](https://answers.ros.org/question/233456/pointgrey_camera_driver-fails-to-compile/)
