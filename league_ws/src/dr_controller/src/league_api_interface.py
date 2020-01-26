@@ -69,6 +69,7 @@ class League_api:
                 results = self.evaluate_client.wait_for_result()
 
                 self.model_under_eval["isEvaluated"] = True
+                print(results)
                 self.model_under_eval["time"] = str(results.time)
                 self.session.put(os.path.join(self.model_endpoint, model["id"]), json=self.model_under_eval)
 

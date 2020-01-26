@@ -74,6 +74,7 @@ class Driver:
         self.rot_tolerance = rot_tolerance # rotation tolerance for human driver to achieve goal
         self.dist_tolerance = dist_tolerance  # rotation tolerance for human driver to achieve goal
         self.camera_topic = camera_topic
+        self.bridge = CvBridge()
 
         # video recorders
         self.overhead_out = None
@@ -120,7 +121,7 @@ class Driver:
 
             # Upload AI model to car and load with designated model
             model_name_with_ext = os.path.basename(goal.model_file_path)
-            model_name_wout_ext = os.path.splitext(model_name_with_ext)[0]
+            model_name_wout_ext = os.path.splitext(os.path.splitext(model_name_with_ext)[0])[0]
             self.car.upload_model(goal.model_file_path, model_name_with_ext)
             # wait for model to be ready before loading it
             model_ready = False
@@ -131,7 +132,7 @@ class Driver:
                         model_ready = True
                 rospy.sleep(0.5)
             self.car.load_model(model_name_wout_ext)
-            self.car.set_throttle_percent(goal.maximum_speed)
+            # self.car.set_throttle_percent(str(goal.maximum_speed))
 
             # will trigger system to begin recording
             feedback.evaluating = True
@@ -169,15 +170,20 @@ class Driver:
             self.evaluation_server.set_succeeded(result)
             self.is_evaluating = False
 
-    def new_overhead_image(self, img):
-        cv_image = None
-        try:
-            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError as e:
-            rospy.logerr(e)
-        (rows, cols, channels) = cv_image.shape
+        result.time = 0
+        result.num_corrections = self.num_corrections
+        result.percent_complete = 0
+        self.evaluation_server.set_succeeded(result)
 
+    def new_overhead_image(self, img):
         if self.recording_video:
+            cv_image = None
+            try:
+                cv_image = self.bridge.imgmsg_to_cv2(img, "bgr8")
+            except CvBridgeError as e:
+                rospy.logerr(e)
+            (rows, cols, channels) = cv_image.shape
+
             if self.overhead_out is None: # if video recording just started
                 # Define the codec and create VideoWriter object
                 fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -185,7 +191,7 @@ class Driver:
 
             self.overhead_out.write(cv_image)
         else:
-            if self.recording_video is not None: #if video recording just ended
+            if self.overhead_out is not None: #if video recording just ended
                 self.overhead_out.release()
             self.overhead_out = None
 
@@ -237,6 +243,7 @@ class Driver:
 
         if self.human_driver:
             rospy.loginfo("Please navigate to the illuminated waypoint to reset car within tolerance")
+            setpoint.header.frame_id = 'map'
             self.goal_pose_pub.publish(setpoint)
             is_within_tolerance = False
             while not is_within_tolerance:
@@ -280,7 +287,7 @@ class Driver:
                 # axes[2] = reverse
                 # axes[5] = forward
                 raw_steering = data.axes[0]
-                steer = -data.axes[0]
+                steer = data.axes[0]
                 drive = range_map(data.axes[5], 1, -1, 0, 1) + range_map(data.axes[2], 1, -1, 0, -1)
                 drive_raw = drive
             else:

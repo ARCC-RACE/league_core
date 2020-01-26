@@ -2,6 +2,7 @@ import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 from bs4 import BeautifulSoup
 import urllib3
+import urllib2
 import json
 
 
@@ -126,7 +127,10 @@ class DRInterface:
         return json.loads(self.session.put(self.manual_drive_url, json=data, headers=self.headers, verify=False).text)
 
     def upload_model(self, model_zip_path, model_name):
-        model_file = open(model_zip_path, 'rb')
+        if "http" in model_zip_path:
+            model_file = urllib2.urlopen(model_zip_path).read()
+        else:
+            model_file = open(model_zip_path, 'rb')
         headers = self.headers
         multipart_data = MultipartEncoder(
             fields={
