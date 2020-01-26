@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# For physical jetson car only
+# For physical deepracer car only
 
 import rospy
 from ackermann_msgs.msg import AckermannDriveStamped
@@ -131,8 +131,11 @@ class Driver:
                     if model["name"] == model_name_wout_ext and model["status"] == "Ready":
                         model_ready = True
                 rospy.sleep(0.5)
+            # refresh session with new login (not sure why you need to do this but you do)
+            client.log_on()
+            client.set_autonomous_mode()
             self.car.load_model(model_name_wout_ext)
-            # self.car.set_throttle_percent(str(goal.maximum_speed))
+            self.car.set_throttle_percent(str(goal.maximum_speed))
 
             # will trigger system to begin recording
             feedback.evaluating = True

@@ -30,6 +30,7 @@ class DRInterface:
         self.upload_models_url = self.URL + "/api/uploadModels"
         self.upload_model_list_url = self.URL + "/api/uploaded_model_list"
         self.manual_drive_url = self.URL + "/api/manual_drive"
+        self.get_battery_url = self.URL + "/api/get_battery_level"
 
         # state variables
         self.manual = True
