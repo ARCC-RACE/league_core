@@ -17,7 +17,7 @@ setup(
         'annoy==1.8.3',
         'Pillow==4.3.0',
         'matplotlib==2.0.2',
-        'numpy==1.14.5',
+        'numpy==1.22.0',
         'pandas==0.22.0',
         'pygame==1.9.3',
         'PyOpenGL==3.1.0',
