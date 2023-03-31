@@ -29,7 +29,7 @@ setup(
         'rospkg==1.1.7',
         'futures==3.1.1',
         'boto3==1.9.23',
-        'redis==2.10.6',
+        'redis==4.4.4',
         'minio==4.0.5',
         #'kubernetes==7.0.0',
         'rl-coach-slim==0.11.1'
